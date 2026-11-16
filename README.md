@@ -106,7 +106,6 @@ petrol-pump-simulation/
 ├── requirements.txt          # Python dependencies
 ├── README.md                 # This file
 ├── .gitignore               # Git ignore rules
-├── LICENSE                  # MIT License
 │
 ├── simulation/              # Core simulation logic
 │   ├── __init__.py
@@ -234,7 +233,4 @@ This project demonstrates key concepts from **Problem Solving Through Simulation
 - **Scenario Analysis**: Comparing alternative system designs to support decision-making.
 - **Validation**: Checking simulation output against theoretical predictions.
 
-## 📄 License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
