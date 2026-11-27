@@ -1,10 +1,7 @@
 """
-Petrol Pump Queue Simulation and Modelling
-===========================================
+Petrol Pump Queue Simulation and Modelling Studio
+=================================================
 A discrete-event simulation application built with Streamlit, SimPy, and Plotly.
-
-Run with:
-    streamlit run app.py
 """
 
 import sys
@@ -16,171 +13,529 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import streamlit as st
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 
 from simulation.engine import PetrolPumpSimulation, SimulationConfig
 from simulation.metrics import compute_metrics
 from simulation.scenarios import ScenarioRunner, ScenarioConfig
 from visualization.charts import (
     queue_length_chart,
-    arrivals_over_time_chart,
-    service_completions_chart,
+    arrivals_and_departures_chart,
     waiting_time_distribution_chart,
     dispenser_utilisation_chart,
     scenario_waiting_time_chart,
     scenario_queue_length_chart,
     scenario_utilisation_chart,
     scenario_throughput_chart,
+    COMMON_LAYOUT,
+    COLOR_EMERALD,
+    COLOR_CYAN,
+    COLOR_BLUE,
+    COLOR_AMBER,
+    COLOR_ROSE,
 )
-from visualization.dashboard import render_kpi_cards
+from visualization.dashboard import render_kpi_cards, render_live_station
 from utils.helpers import vehicles_to_dataframe, traffic_intensity
 
 # ──────────────────────────────────────────────
-# Page configuration
+# Page Configuration
 # ──────────────────────────────────────────────
 st.set_page_config(
-    page_title="Petrol Pump Queue Simulation",
+    page_title="PetroFlow • Petrol Pump Queue Simulation",
     page_icon="⛽",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 # ──────────────────────────────────────────────
-# Custom CSS for the dark petrol-station theme
+# Ultra-Modern Executive Glassmorphic CSS Theme
 # ──────────────────────────────────────────────
 st.markdown("""
 <style>
-    /* Main background */
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    /* Global Typography & Background */
+    html, body, [class*="css"] {
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    
     .stApp {
-        background-color: #1a1a2e;
-        color: #e0e0e0;
+        background-color: #080c14;
+        background-image: radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.06) 0%, rgba(8, 12, 20, 1) 75%);
+        color: #f1f5f9;
     }
 
-    /* Sidebar */
+    /* Sidebar Styling */
     section[data-testid="stSidebar"] {
-        background-color: #16213e;
+        background-color: #0d121f !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
     }
-    section[data-testid="stSidebar"] .stMarkdown {
-        color: #e0e0e0;
-    }
-
-    /* Metric cards */
-    div[data-testid="stMetric"] {
-        background-color: #16213e;
-        border: 1px solid #2a2a4a;
-        border-radius: 8px;
-        padding: 12px 16px;
-    }
-    div[data-testid="stMetric"] label {
-        color: #a0a0b0 !important;
-    }
-    div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
-        color: #2ecc71 !important;
+    section[data-testid="stSidebar"] .stMarkdown h2, 
+    section[data-testid="stSidebar"] .stMarkdown h3 {
+        color: #f8fafc !important;
+        font-weight: 700;
+        letter-spacing: -0.02em;
     }
 
-    /* Tab styling */
+    /* Modern Glassmorphic Cards */
+    .kpi-card {
+        background: rgba(17, 24, 39, 0.7);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        padding: 18px 20px;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+        transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .kpi-card:hover {
+        border-color: rgba(16, 185, 129, 0.4);
+        transform: translateY(-2px);
+    }
+    .kpi-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+    .kpi-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        font-size: 1.1rem;
+    }
+    .icon-emerald { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+    .icon-blue    { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+    .icon-amber   { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+    .icon-purple  { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
+    .kpi-tag {
+        font-size: 0.72rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #94a3b8;
+    }
+    .kpi-value {
+        font-size: 2.1rem;
+        font-weight: 800;
+        color: #ffffff;
+        letter-spacing: -0.03em;
+        line-height: 1.1;
+    }
+    .kpi-unit {
+        font-size: 0.95rem;
+        font-weight: 500;
+        color: #94a3b8;
+    }
+    .kpi-label {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: #94a3b8;
+        margin-top: 4px;
+    }
+    .kpi-footer {
+        margin-top: 14px;
+        padding-top: 10px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .kpi-sub {
+        font-size: 0.78rem;
+        color: #cbd5e1;
+    }
+
+    /* Badges & Status Pills */
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 10px;
+        border-radius: 9999px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+    }
+    .pill-green { background: rgba(16, 185, 129, 0.18); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .pill-amber { background: rgba(245, 158, 11, 0.18); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .pill-rose  { background: rgba(239, 68, 68, 0.18);  color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .pill-blue  { background: rgba(59, 130, 246, 0.18); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+
+    /* Custom Header Bar */
+    .hero-banner {
+        background: linear-gradient(135deg, rgba(17, 24, 39, 0.8) 0%, rgba(15, 23, 42, 0.6) 100%);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 22px 28px;
+        margin-bottom: 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+    .hero-title {
+        font-size: 1.65rem;
+        font-weight: 800;
+        color: #ffffff;
+        letter-spacing: -0.03em;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .hero-desc {
+        font-size: 0.875rem;
+        color: #94a3b8;
+        margin-top: 4px;
+        margin-bottom: 0;
+    }
+
+    /* Tabs Styling */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
+        background: rgba(17, 24, 39, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 4px;
+        gap: 4px;
     }
     .stTabs [data-baseweb="tab"] {
-        background-color: #16213e;
-        border-radius: 6px;
-        color: #e0e0e0;
-        padding: 8px 16px;
+        background-color: transparent !important;
+        border-radius: 8px !important;
+        color: #94a3b8 !important;
+        font-weight: 600 !important;
+        font-size: 0.85rem !important;
+        padding: 8px 16px !important;
+        transition: all 0.2s ease !important;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #2ecc71 !important;
-        color: #1a1a2e !important;
+        background-color: #10b981 !important;
+        color: #064e3b !important;
+        font-weight: 700 !important;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
     }
 
-    /* Headers */
-    h1, h2, h3 {
-        color: #2ecc71 !important;
+    /* Station Visualizer Components */
+    .station-terminal-header {
+        background: rgba(17, 24, 39, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        padding: 16px 20px;
+        margin-bottom: 16px;
+    }
+    .pulse-indicator {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #10b981;
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+        animation: pulse 1.8s infinite;
+    }
+    @keyframes pulse {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+    .station-chip {
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 4px 10px;
+        border-radius: 6px;
+    }
+    .chip-blue    { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+    .chip-amber   { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .chip-emerald { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+
+    .lane-container {
+        background: rgba(15, 23, 42, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 14px;
+        padding: 16px;
+        min-height: 440px;
+    }
+    .lane-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: #94a3b8;
+        letter-spacing: 0.04em;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .lane-badge {
+        font-size: 0.7rem;
+        padding: 2px 8px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.08);
+        color: #cbd5e1;
     }
 
-    /* Expander */
-    .streamlit-expanderHeader {
-        background-color: #16213e;
-        color: #e0e0e0;
-    }
-
-    /* Dataframe */
-    .stDataFrame {
-        border: 1px solid #2a2a4a;
+    .queue-vehicle-card {
+        background: rgba(30, 41, 59, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.06);
         border-radius: 8px;
+        padding: 9px 12px;
+        margin-bottom: 8px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+    }
+    .time-tag {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: #fbbf24;
     }
 
-    /* Info / warning boxes */
-    .stAlert {
-        background-color: #16213e;
-        border: 1px solid #2a2a4a;
+    .dispenser-box {
+        border-radius: 12px;
+        padding: 14px;
+        margin-bottom: 12px;
+        transition: all 0.2s ease;
+    }
+    .bay-active {
+        background: linear-gradient(145deg, rgba(14, 165, 233, 0.12), rgba(15, 23, 42, 0.8));
+        border: 1.5px solid rgba(14, 165, 233, 0.45);
+        box-shadow: 0 0 15px rgba(14, 165, 233, 0.15);
+    }
+    .bay-idle {
+        background: rgba(30, 41, 59, 0.4);
+        border: 1px dashed rgba(255, 255, 255, 0.1);
+    }
+    .bay-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+    .bay-num {
+        font-size: 0.75rem;
+        font-weight: 800;
+        color: #94a3b8;
+        letter-spacing: 0.05em;
+    }
+    .bay-status {
+        font-size: 0.7rem;
+        font-weight: 700;
+    }
+    .status-fueling { color: #38bdf8; }
+    .status-idle    { color: #64748b; }
+    .bay-vehicle {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #ffffff;
+    }
+    .vehicle-id-pill {
+        font-size: 0.7rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: rgba(14, 165, 233, 0.2);
+        color: #38bdf8;
+    }
+    .progress-container {
+        width: 100%;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 999px;
+        overflow: hidden;
+        margin-bottom: 6px;
+    }
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #0ea5e9, #10b981);
+        border-radius: 999px;
+        transition: width 0.3s ease;
+    }
+    .bay-timer-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.72rem;
+        color: #94a3b8;
+    }
+    .idle-graphic {
+        text-align: center;
+        font-size: 1.8rem;
+        opacity: 0.35;
+        padding: 6px 0;
+    }
+
+    .exit-card {
+        background: rgba(30, 41, 59, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.05);
         border-radius: 8px;
+        padding: 8px 12px;
+        margin-bottom: 6px;
+    }
+    .empty-lane-state {
+        text-align: center;
+        padding: 60px 16px;
+    }
+
+    /* Buttons */
+    div.stButton > button:first-child {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: #ffffff !important;
+        font-weight: 700;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+        transition: all 0.2s ease;
+    }
+    div.stButton > button:first-child:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
     }
 </style>
 """, unsafe_allow_html=True)
 
 # ──────────────────────────────────────────────
-# Sidebar — Simulation Parameters
+# Quick Preset Configurations Handler
+# ──────────────────────────────────────────────
+PRESETS = {
+    "Urban Commute (Balanced)": {
+        "num_dispensers": 3,
+        "arrival_rate": 20.0,
+        "avg_service_time": 5.0,
+        "service_time_std": 1.5,
+        "sim_duration": 120,
+    },
+    "Morning Peak Rush": {
+        "num_dispensers": 3,
+        "arrival_rate": 34.0,
+        "avg_service_time": 4.5,
+        "service_time_std": 1.2,
+        "sim_duration": 120,
+    },
+    "Highway Mega-Station": {
+        "num_dispensers": 6,
+        "arrival_rate": 65.0,
+        "avg_service_time": 4.0,
+        "service_time_std": 1.0,
+        "sim_duration": 180,
+    },
+    "Severe Bottleneck (Stress Test)": {
+        "num_dispensers": 1,
+        "arrival_rate": 22.0,
+        "avg_service_time": 5.5,
+        "service_time_std": 1.5,
+        "sim_duration": 90,
+    },
+}
+
+# ──────────────────────────────────────────────
+# Sidebar: Parameter Control Center
 # ──────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("## ⛽ Simulation Parameters")
+    st.markdown("""
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+        <span style="font-size: 1.8rem;">⛽</span>
+        <div>
+            <div style="font-weight: 800; font-size: 1.15rem; color: #ffffff; letter-spacing: -0.02em;">PETROFLOW</div>
+            <div style="font-size: 0.72rem; color: #10b981; font-weight: 600;">SIMULATION ENGINE v2.0</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     st.markdown("---")
+
+    # Quick Scenario Presets
+    st.markdown("#### ⚡ Quick Presets")
+    preset_choice = st.selectbox(
+        "Load Preset Scenario",
+        ["Select a preset...", *list(PRESETS.keys())],
+        index=0,
+        label_visibility="collapsed",
+    )
+
+    if preset_choice != "Select a preset...":
+        p = PRESETS[preset_choice]
+        st.session_state["num_dispensers"] = p["num_dispensers"]
+        st.session_state["arrival_rate"] = p["arrival_rate"]
+        st.session_state["avg_service_time"] = p["avg_service_time"]
+        st.session_state["service_time_std"] = p["service_time_std"]
+        st.session_state["sim_duration"] = p["sim_duration"]
+
+    st.markdown("#### 🎛️ Station Parameters")
 
     num_dispensers = st.slider(
-        "Number of Fuel Dispensers",
-        min_value=1, max_value=10, value=3,
-        help="How many fuel pumps are available at the station.",
+        "Fuel Dispensers (c)",
+        min_value=1, max_value=10,
+        value=st.session_state.get("num_dispensers", 3),
+        help="Number of parallel fuel pumps available at the station.",
     )
+
     arrival_rate = st.slider(
-        "Vehicle Arrival Rate (vehicles/hour)",
-        min_value=1.0, max_value=120.0, value=20.0, step=1.0,
-        help="Average number of vehicles arriving per hour (λ).",
+        "Arrival Rate λ (veh/hr)",
+        min_value=1.0, max_value=120.0,
+        value=st.session_state.get("arrival_rate", 20.0),
+        step=1.0,
+        help="Average rate of incoming vehicles per hour (Poisson process).",
     )
+
     avg_service_time = st.slider(
-        "Average Service Time (minutes)",
-        min_value=1.0, max_value=20.0, value=5.0, step=0.5,
-        help="Mean time to fuel a vehicle.",
+        "Avg Service Time 1/μ (min)",
+        min_value=1.0, max_value=20.0,
+        value=st.session_state.get("avg_service_time", 5.0),
+        step=0.5,
+        help="Mean fueling and payment duration per vehicle.",
     )
+
     service_time_std = st.slider(
-        "Service Time Variability (std dev, min)",
-        min_value=0.0, max_value=5.0, value=1.5, step=0.1,
-        help="Standard deviation of fuel service time.",
+        "Service Std Dev σ (min)",
+        min_value=0.0, max_value=5.0,
+        value=st.session_state.get("service_time_std", 1.5),
+        step=0.1,
+        help="Variability in service times (truncated normal).",
     )
+
+    st.markdown("#### ⏱️ Simulation Settings")
     sim_duration = st.slider(
-        "Simulation Duration (minutes)",
-        min_value=30, max_value=480, value=120, step=10,
-        help="How long to run the simulation.",
+        "Run Duration (min)",
+        min_value=30, max_value=480,
+        value=st.session_state.get("sim_duration", 120),
+        step=10,
+        help="Simulated time span in minutes.",
     )
+
     random_seed = st.number_input(
-        "Random Seed",
-        min_value=0, max_value=99999, value=42,
-        help="Seed for reproducible results.",
-    )
-    num_repetitions = st.slider(
-        "Simulation Repetitions",
-        min_value=1, max_value=20, value=1,
-        help="Number of independent runs to average over.",
+        "Stochastic Seed",
+        min_value=0, max_value=99999,
+        value=st.session_state.get("random_seed", 42),
+        help="RNG seed for exact scientific reproducibility.",
     )
 
     st.markdown("---")
 
-    # Traffic intensity indicator
-    service_rate = 60.0 / avg_service_time  # vehicles/hour per dispenser
-    rho = traffic_intensity(arrival_rate, service_rate, num_dispensers)
+    # Real-Time Traffic Intensity Calculation
+    service_rate_per_pump = 60.0 / avg_service_time  # veh/hr
+    total_capacity = num_dispensers * service_rate_per_pump
+    rho = traffic_intensity(arrival_rate, service_rate_per_pump, num_dispensers)
 
-    if rho < 0.7:
-        st.success(f"Traffic Intensity ρ = {rho:.3f} — System is **under-loaded**.")
-    elif rho < 1.0:
-        st.warning(f"Traffic Intensity ρ = {rho:.3f} — System is **moderately loaded**.")
-    else:
-        st.error(
-            f"Traffic Intensity ρ = {rho:.3f} — System is **unstable** (ρ ≥ 1). "
-            "Queues will grow without bound. Add more dispensers or reduce demand."
-        )
+    st.markdown(f"""
+    <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 12px; margin-bottom: 14px;">
+        <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#94a3b8; margin-bottom:4px;">
+            <span>Traffic Intensity (ρ)</span>
+            <span style="font-weight:700; color:{'#34d399' if rho < 0.7 else ('#fbbf24' if rho < 1.0 else '#f87171')}">{rho:.3f}</span>
+        </div>
+        <div style="width:100%; height:6px; background:rgba(255,255,255,0.1); border-radius:999px; overflow:hidden;">
+            <div style="width:{min(100.0, rho * 100):.0f}%; height:100%; background:{'#10b981' if rho < 0.7 else ('#f59e0b' if rho < 1.0 else '#ef4444')};"></div>
+        </div>
+        <div style="font-size:0.72rem; color:#94a3b8; margin-top:6px;">
+            Arrival Demand: <b>{arrival_rate:.0f}</b> / Capacity: <b>{total_capacity:.0f}</b> veh/hr
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    run_button = st.button("🚀 Run Simulation", use_container_width=True, type="primary")
+    if st.button("⚡ Run Simulation Engine", type="primary", use_container_width=True):
+        st.session_state["force_rerun"] = True
 
 # ──────────────────────────────────────────────
-# Build config and run simulation
+# Execute Discrete-Event Simulation
 # ──────────────────────────────────────────────
 config = SimulationConfig(
     num_dispensers=num_dispensers,
@@ -195,10 +550,7 @@ config = SimulationConfig(
 
 
 @st.cache_data
-def run_simulation_cached(
-    nd, ar, ast_, sts, mn, mx, sd, rs
-):
-    """Cache-friendly wrapper for the simulation."""
+def execute_simulation(nd, ar, ast_, sts, mn, mx, sd, rs):
     cfg = SimulationConfig(
         num_dispensers=nd,
         arrival_rate=ar,
@@ -210,13 +562,12 @@ def run_simulation_cached(
         random_seed=rs,
     )
     sim = PetrolPumpSimulation(cfg)
-    result = sim.run()
-    metrics = compute_metrics(result)
-    return result, metrics, cfg
+    res = sim.run()
+    met = compute_metrics(res)
+    return res, met, cfg
 
 
-# Always run with current params (Streamlit re-renders on changes)
-result, metrics, cfg = run_simulation_cached(
+result, metrics, _ = execute_simulation(
     config.num_dispensers,
     config.arrival_rate,
     config.avg_service_time,
@@ -228,593 +579,508 @@ result, metrics, cfg = run_simulation_cached(
 )
 
 # ──────────────────────────────────────────────
-# Title
+# Hero Banner
 # ──────────────────────────────────────────────
-st.markdown(
-    "<h1 style='text-align:center; margin-bottom:0;'>⛽ Petrol Pump Queue Simulation</h1>",
-    unsafe_allow_html=True,
-)
-st.markdown(
-    "<p style='text-align:center; color:#a0a0b0; margin-top:0;'>"
-    "Discrete-Event Simulation &amp; Queueing Theory Analysis</p>",
-    unsafe_allow_html=True,
-)
-st.markdown("---")
+if rho < 0.7:
+    status_indicator = '<span class="status-pill pill-green">🟢 Normal Flow (ρ = {:.2f})</span>'.format(rho)
+    status_desc = "Optimal operating state: Queue delays are minimal and customer turnaround is fast."
+elif rho < 1.0:
+    status_indicator = '<span class="status-pill pill-amber">🟡 Heavy Traffic (ρ = {:.2f})</span>'.format(rho)
+    status_desc = "High utilization: Queues form intermittently during arrival bursts."
+else:
+    status_indicator = '<span class="status-pill pill-rose">🔴 System Saturated (ρ = {:.2f})</span>'.format(rho)
+    status_desc = "Unstable condition: Demand exceeds service capacity; queues expand indefinitely."
+
+st.markdown(f"""
+<div class="hero-banner">
+    <div>
+        <h1 class="hero-title">
+            <span>⛽ PetroFlow</span>
+            <span style="font-weight: 400; color: #94a3b8; font-size: 1.25rem;">| Queue Simulation &amp; Modelling Studio</span>
+        </h1>
+        <p class="hero-desc">
+            SimPy Discrete-Event Queue Engine • M/G/{num_dispensers} Multi-Server Stochastic Process • FCFS Service Discipline
+        </p>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+        {status_indicator}
+        <span style="font-size: 0.75rem; color: #94a3b8;">{status_desc}</span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 # ──────────────────────────────────────────────
-# Tab layout
+# Interactive Tabs Architecture
 # ──────────────────────────────────────────────
 tabs = st.tabs([
-    "📊 Overview",
-    "🏗️ Live Simulation",
-    "📈 Queue Analysis",
-    "📐 Statistical Analysis",
-    "🔀 Scenario Comparison",
-    "🔮 What-If Analysis",
+    "📊 KPI Overview",
+    "🏗️ Live Station Visualizer",
+    "📈 Queue & Traffic Analytics",
+    "📐 Statistical Deep-Dive",
+    "🔀 Multi-Scenario Benchmark",
+    "🔮 Sensitivity / What-If",
     "📖 Mathematical Model",
 ])
 
 # ════════════════════════════════════════
-# TAB 1 — Overview
+# TAB 1 — KPI Overview & Vehicle Log
 # ════════════════════════════════════════
 with tabs[0]:
-    st.markdown("### Key Performance Indicators")
-    render_kpi_cards(metrics)
+    render_kpi_cards(metrics, rho)
 
-    st.markdown("---")
-    st.markdown("### Vehicle Log")
-    df = vehicles_to_dataframe(result.vehicles)
-    st.dataframe(df, use_container_width=True, height=400)
+    # Operational Health Card
+    st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+    c_sum1, c_sum2 = st.columns([1.5, 1])
+    with c_sum1:
+        st.markdown(f"""
+        <div style="background: rgba(17, 24, 39, 0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 18px 22px;">
+            <div style="font-size: 0.95rem; font-weight: 700; color: #f8fafc; margin-bottom: 8px;">
+                💡 Operational Diagnosis &amp; System Health
+            </div>
+            <div style="font-size: 0.85rem; color: #cbd5e1; line-height: 1.6;">
+                • <b>Arrival Rate:</b> {config.arrival_rate:.1f} vehicles/hour with average service duration of {config.avg_service_time:.1f} minutes.<br>
+                • <b>Effective Service Capacity:</b> {total_capacity:.1f} vehicles/hour across {config.num_dispensers} dispenser(s).<br>
+                • <b>Turnaround Efficiency:</b> Average customer stays in the station for <b>{metrics.avg_time_in_system:.2f} minutes</b> (waiting: {metrics.avg_waiting_time:.2f}m, fueling: {metrics.avg_time_in_system - metrics.avg_waiting_time:.2f}m).<br>
+                • <b>Queue Congestion Risk:</b> {'Low — dispensers handle traffic smoothly.' if rho < 0.7 else ('Moderate — queues accumulate during micro-peaks.' if rho < 1.0 else 'Critical — arrival rate exceeds capacity. Adding another dispenser is strongly recommended.')}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-# ════════════════════════════════════════
-# TAB 2 — Live Simulation Visualisation
-# ════════════════════════════════════════
-with tabs[1]:
-    st.markdown("### Petrol Station Visualisation")
+    with c_sum2:
+        st.markdown(f"""
+        <div style="background: rgba(17, 24, 39, 0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 18px 22px;">
+            <div style="font-size: 0.95rem; font-weight: 700; color: #f8fafc; margin-bottom: 8px;">
+                ⚡ Fast Insights
+            </div>
+            <div style="font-size: 0.82rem; color: #94a3b8; line-height: 1.55;">
+                <span style="color:#10b981;">✔</span> <b>Completed Vehicles:</b> {metrics.total_served:,} of {metrics.total_arrived:,}<br>
+                <span style="color:#38bdf8;">✔</span> <b>95% of Customers Wait Under:</b> {metrics.p95_waiting_time:.2f} min<br>
+                <span style="color:#f59e0b;">✔</span> <b>Peak Queue Recorded:</b> {metrics.max_queue_length} vehicles<br>
+                <span style="color:#8b5cf6;">✔</span> <b>Hourly Station Throughput:</b> {metrics.throughput_per_hour:.1f} veh/hr
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    if not result.vehicles:
-        st.info("Run the simulation to see the visualisation.")
+    st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
+    st.markdown("#### 📋 Vehicle Event Ledger")
+    
+    df_vehicles = vehicles_to_dataframe(result.vehicles)
+    
+    # Filter controls
+    col_f1, col_f2 = st.columns([2, 1])
+    with col_f1:
+        search_status = st.multiselect(
+            "Filter by Lifecycle Status",
+            ["completed", "fueling", "waiting"],
+            default=["completed", "fueling", "waiting"],
+        )
+    with col_f2:
+        # CSV Export
+        csv_data = df_vehicles.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 Download Event Ledger (CSV)",
+            data=csv_data,
+            file_name="petrol_pump_simulation_results.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
+
+    if search_status:
+        filtered_df = df_vehicles[df_vehicles["Status"].isin(search_status)]
     else:
-        # Time-stepped visualisation
-        max_time = config.simulation_duration
-        time_step = st.slider(
-            "Simulation Time (minutes)", 0.0, max_time,
-            value=max_time, step=1.0,
-            key="time_slider",
-        )
+        filtered_df = df_vehicles
 
-        # Categorise vehicles at selected time
-        waiting = []
-        fueling = []
-        completed = []
-        not_arrived = []
-
-        for v in result.vehicles:
-            if v.arrival_time > time_step:
-                not_arrived.append(v)
-            elif v.service_start_time == 0 or v.service_start_time > time_step:
-                waiting.append(v)
-            elif v.service_end_time == 0 or v.service_end_time > time_step:
-                fueling.append(v)
-            else:
-                completed.append(v)
-
-        # Display station state
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.markdown(
-                f"<div style='background:#16213e;border:1px solid #2a2a4a;"
-                f"border-radius:8px;padding:16px;text-align:center;'>"
-                f"<h3 style='color:#f39c12 !important;'>🚗 Waiting</h3>"
-                f"<p style='font-size:2.5em;color:#f39c12;margin:0;'>{len(waiting)}</p>"
-                f"</div>",
-                unsafe_allow_html=True,
-            )
-        with col2:
-            st.markdown(
-                f"<div style='background:#16213e;border:1px solid #2a2a4a;"
-                f"border-radius:8px;padding:16px;text-align:center;'>"
-                f"<h3 style='color:#3498db !important;'>⛽ Fueling</h3>"
-                f"<p style='font-size:2.5em;color:#3498db;margin:0;'>{len(fueling)}</p>"
-                f"</div>",
-                unsafe_allow_html=True,
-            )
-        with col3:
-            st.markdown(
-                f"<div style='background:#16213e;border:1px solid #2a2a4a;"
-                f"border-radius:8px;padding:16px;text-align:center;'>"
-                f"<h3 style='color:#2ecc71 !important;'>✅ Completed</h3>"
-                f"<p style='font-size:2.5em;color:#2ecc71;margin:0;'>{len(completed)}</p>"
-                f"</div>",
-                unsafe_allow_html=True,
-            )
-
-        st.markdown("#### Fuel Dispensers")
-        disp_cols = st.columns(min(num_dispensers, 5))
-        for i in range(num_dispensers):
-            with disp_cols[i % len(disp_cols)]:
-                # Check if dispenser i is currently serving
-                currently_serving = None
-                for v in fueling:
-                    if v.dispenser_id == i:
-                        currently_serving = v
-                        break
-                if currently_serving:
-                    st.markdown(
-                        f"<div style='background:#0a3d62;border:2px solid #3498db;"
-                        f"border-radius:8px;padding:12px;text-align:center;'>"
-                        f"<p style='margin:0;font-size:1.2em;'>⛽ Dispenser {i+1}</p>"
-                        f"<p style='margin:4px 0 0;color:#3498db;'>🚗 Vehicle #{currently_serving.vehicle_id}</p>"
-                        f"</div>",
-                        unsafe_allow_html=True,
-                    )
-                else:
-                    st.markdown(
-                        f"<div style='background:#16213e;border:2px solid #2a2a4a;"
-                        f"border-radius:8px;padding:12px;text-align:center;'>"
-                        f"<p style='margin:0;font-size:1.2em;'>⛽ Dispenser {i+1}</p>"
-                        f"<p style='margin:4px 0 0;color:#666;'>Idle</p>"
-                        f"</div>",
-                        unsafe_allow_html=True,
-                    )
-
-        if waiting:
-            st.markdown("#### Queue")
-            queue_text = " → ".join([f"🚗 #{v.vehicle_id}" for v in waiting[:20]])
-            if len(waiting) > 20:
-                queue_text += f" ... (+{len(waiting)-20} more)"
-            st.markdown(
-                f"<div style='background:#16213e;border:1px solid #f39c12;"
-                f"border-radius:8px;padding:12px;'>{queue_text}</div>",
-                unsafe_allow_html=True,
-            )
-
-# ════════════════════════════════════════
-# TAB 3 — Queue Analysis
-# ════════════════════════════════════════
-with tabs[2]:
-    st.markdown("### Queue Analysis Charts")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        st.plotly_chart(
-            queue_length_chart(result.queue_length_over_time),
-            use_container_width=True,
-        )
-    with col2:
-        st.plotly_chart(
-            arrivals_over_time_chart(result),
-            use_container_width=True,
-        )
-
-    col3, col4 = st.columns(2)
-    with col3:
-        st.plotly_chart(
-            service_completions_chart(result),
-            use_container_width=True,
-        )
-    with col4:
-        st.plotly_chart(
-            waiting_time_distribution_chart(result),
-            use_container_width=True,
-        )
-
-    st.markdown("### Dispenser Utilisation")
-    st.plotly_chart(
-        dispenser_utilisation_chart(metrics, num_dispensers),
+    st.dataframe(
+        filtered_df,
         use_container_width=True,
+        height=340,
     )
 
 # ════════════════════════════════════════
-# TAB 4 — Statistical Analysis
+# TAB 2 — Live Station Layout Visualizer
+# ════════════════════════════════════════
+with tabs[1]:
+    st.markdown("### 🏗️ Forecourt Live Simulation Visualizer")
+    st.markdown(
+        "Scrub through the simulation timeline to watch queue formation, "
+        "dispenser allocation, and customer departure dynamics in real-time."
+    )
+
+    t_col1, t_col2 = st.columns([3, 1])
+    with t_col1:
+        time_scrubber = st.slider(
+            "Timeline Time (T in minutes)",
+            min_value=0.0,
+            max_value=float(config.simulation_duration),
+            value=float(config.simulation_duration),
+            step=1.0,
+            key="forecourt_timeline_slider",
+        )
+    with t_col2:
+        st.markdown("<div style='height: 26px;'></div>", unsafe_allow_html=True)
+        if st.button("⏮ Jump to T=15m", use_container_width=True):
+            st.session_state["forecourt_timeline_slider"] = 15.0
+
+    render_live_station(result, time_scrubber, config.num_dispensers)
+
+# ════════════════════════════════════════
+# TAB 3 — Queue & Traffic Analytics
+# ════════════════════════════════════════
+with tabs[2]:
+    st.markdown("### 📈 Forecourt Queue & Velocity Analytics")
+    st.markdown("Interactive analytical charts examining stochastic queue build-up and service velocity.")
+
+    q_col1, q_col2 = st.columns(2)
+    with q_col1:
+        st.plotly_chart(queue_length_chart(result.queue_length_over_time), use_container_width=True)
+    with q_col2:
+        st.plotly_chart(arrivals_and_departures_chart(result), use_container_width=True)
+
+    q_col3, q_col4 = st.columns(2)
+    with q_col3:
+        st.plotly_chart(waiting_time_distribution_chart(result), use_container_width=True)
+    with q_col4:
+        st.plotly_chart(dispenser_utilisation_chart(metrics, config.num_dispensers), use_container_width=True)
+
+# ════════════════════════════════════════
+# TAB 4 — Statistical Deep-Dive
 # ════════════════════════════════════════
 with tabs[3]:
-    st.markdown("### Detailed Statistical Analysis")
+    st.markdown("### 📐 Statistical Deep-Dive & Queueing Theory Verification")
 
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.markdown("#### Waiting Time Statistics")
-        stats_data = {
+    stat_col1, stat_col2 = st.columns(2)
+    with stat_col1:
+        st.markdown("#### Waiting Time Dispersion Metrics")
+        wait_df = pd.DataFrame({
             "Metric": [
-                "Mean Waiting Time",
+                "Mean Waiting Time (Wq)",
                 "Median Waiting Time",
                 "Std Dev of Waiting Time",
-                "95th Percentile Waiting Time",
-                "Maximum Waiting Time",
+                "95th Percentile Wait",
+                "Maximum Wait Experienced",
             ],
-            "Value": [
+            "Simulation Value": [
                 f"{metrics.avg_waiting_time:.3f} min",
                 f"{metrics.median_waiting_time:.3f} min",
                 f"{metrics.std_waiting_time:.3f} min",
                 f"{metrics.p95_waiting_time:.3f} min",
                 f"{metrics.max_waiting_time:.3f} min",
             ],
-            "Explanation": [
-                "Average time a vehicle waits before fueling begins.",
-                "The middle value: half of vehicles wait less, half wait more.",
-                "Measures how spread out waiting times are.",
-                "95% of vehicles wait less than this time.",
-                "The longest any single vehicle had to wait.",
-            ],
-        }
-        st.dataframe(pd.DataFrame(stats_data), use_container_width=True, hide_index=True)
+            "Theoretical Significance": [
+                "Expected time a vehicle remains in the queue prior to nozzle insertion.",
+                "50% of vehicles experienced lower wait times than this value.",
+                "Degree of dispersion and predictability in service turnaround.",
+                "Service SLA benchmark: 95% of all drivers wait less than this.",
+                "Worst-case bottleneck duration recorded in the run.",
+            ]
+        })
+        st.dataframe(wait_df, use_container_width=True, hide_index=True)
 
-    with col2:
-        st.markdown("#### System Performance")
-        perf_data = {
+    with stat_col2:
+        st.markdown("#### Forecourt System Performance")
+        sys_df = pd.DataFrame({
             "Metric": [
-                "Mean Time in System",
-                "Average Queue Length",
-                "Maximum Queue Length",
-                "Average Dispenser Utilisation",
-                "Throughput",
+                "Mean Time in Station (W)",
+                "Time-Weighted Queue Length (Lq)",
+                "Peak Queue Depth Recorded",
+                "Aggregate Dispenser Utilization",
+                "Effective Service Throughput",
             ],
-            "Value": [
+            "Simulation Value": [
                 f"{metrics.avg_time_in_system:.3f} min",
-                f"{metrics.avg_queue_length:.3f}",
-                str(metrics.max_queue_length),
+                f"{metrics.avg_queue_length:.3f} vehicles",
+                f"{metrics.max_queue_length} vehicles",
                 f"{metrics.avg_utilisation:.1%}",
                 f"{metrics.throughput_per_hour:.1f} veh/hr",
             ],
-            "Explanation": [
-                "Average total time from arrival to departure.",
-                "Time-weighted average number of vehicles in the queue.",
-                "Peak number of vehicles waiting simultaneously.",
-                "Fraction of time dispensers are actively serving.",
-                "Number of vehicles served per hour.",
-            ],
-        }
-        st.dataframe(pd.DataFrame(perf_data), use_container_width=True, hide_index=True)
+            "Theoretical Significance": [
+                "Total dwell time from station entry to final departure.",
+                "Integral of queue length over total simulated duration.",
+                "Highest instantaneous backlog observed in the approach lane.",
+                "Percentage of available pump capacity actively fueling vehicles.",
+                "Completed vehicle processing rate per elapsed hour.",
+            ]
+        })
+        st.dataframe(sys_df, use_container_width=True, hide_index=True)
 
     st.markdown("---")
-    st.markdown("#### Little's Law Verification")
+    
+    # Little's Law Empirical Proof
+    st.markdown("#### ⚖️ Little's Law Empirical Validation: L = λ · W")
+    
+    lam_min = config.arrival_rate / 60.0
     L_sim = metrics.avg_queue_length
-    lam_per_min = arrival_rate / 60.0
     W_sim = metrics.avg_waiting_time
-    L_theory = lam_per_min * W_sim
+    L_pred = lam_min * W_sim
+    diff_pct = abs(L_sim - L_pred) / max(0.01, L_sim) * 100.0
 
-    littles_data = {
-        "Quantity": ["L (avg vehicles in queue)", "λ (arrival rate)", "W (avg waiting time)", "λ × W (predicted L)"],
-        "Value": [f"{L_sim:.3f}", f"{lam_per_min:.4f} veh/min", f"{W_sim:.3f} min", f"{L_theory:.3f}"],
-    }
-    st.dataframe(pd.DataFrame(littles_data), use_container_width=True, hide_index=True)
-    if L_sim > 0:
-        error_pct = abs(L_sim - L_theory) / L_sim * 100
-        st.info(
-            f"Little's Law states L = λW. Simulated L = {L_sim:.3f}, "
-            f"Predicted L = {L_theory:.3f} (difference: {error_pct:.1f}%). "
-            "Small differences are expected due to transient warm-up effects and finite simulation duration."
-        )
+    st.markdown(f"""
+    <div style="background: rgba(17, 24, 39, 0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <div>
+            <div style="font-size: 1.1rem; font-weight: 700; color: #f8fafc;">
+                Formula: L<sub>q</sub> = λ · W<sub>q</sub>
+            </div>
+            <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 4px;">
+                Where <b>λ</b> = {lam_min:.4f} veh/min, <b>W<sub>q</sub></b> = {W_sim:.3f} min
+            </div>
+        </div>
+        <div style="display: flex; gap: 20px;">
+            <div style="text-align: right;">
+                <div style="font-size: 0.75rem; color: #94a3b8;">Simulated L<sub>q</sub></div>
+                <div style="font-size: 1.4rem; font-weight: 800; color: #10b981;">{L_sim:.3f}</div>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-size: 0.75rem; color: #94a3b8;">Predicted λ · W<sub>q</sub></div>
+                <div style="font-size: 1.4rem; font-weight: 800; color: #38bdf8;">{L_pred:.3f}</div>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-size: 0.75rem; color: #94a3b8;">Discrepancy</div>
+                <div style="font-size: 1.4rem; font-weight: 800; color: {'#34d399' if diff_pct < 10 else '#fbbf24'};">{diff_pct:.1f}%</div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.caption("Note: Residual divergence under 10% is expected in finite-horizon simulations due to transient initialization and discrete event boundaries.")
 
 # ════════════════════════════════════════
-# TAB 5 — Scenario Comparison
+# TAB 5 — Multi-Scenario Benchmark
 # ════════════════════════════════════════
 with tabs[4]:
-    st.markdown("### Scenario Comparison")
-    st.markdown("Compare how different numbers of dispensers affect performance.")
+    st.markdown("### 🔀 Multi-Scenario Benchmark & Capacity Planning")
+    st.markdown(
+        "Evaluate station performance across different numbers of fuel dispensers (1 to 4) "
+        "under identical arrival pressure to determine the optimal capital allocation."
+    )
 
-    sc_col1, sc_col2 = st.columns(2)
-    with sc_col1:
-        sc_arrival = st.slider(
-            "Arrival Rate for Comparison (veh/hr)",
-            1.0, 120.0, arrival_rate, 1.0, key="sc_arrival",
+    sc_c1, sc_c2 = st.columns([2, 1])
+    with sc_c1:
+        benchmark_arrival = st.slider(
+            "Benchmark Arrival Demand λ (veh/hr)",
+            min_value=5.0, max_value=80.0,
+            value=float(config.arrival_rate),
+            step=1.0,
+            key="benchmark_arr_rate",
         )
-    with sc_col2:
-        sc_reps = st.slider(
-            "Repetitions per Scenario",
-            1, 10, 3, key="sc_reps",
+    with sc_c2:
+        benchmark_reps = st.slider(
+            "Replications per Configuration",
+            min_value=1, max_value=5, value=2,
+            help="Average over multiple stochastic runs to smooth variance.",
         )
 
+    # Build 4 comparative scenarios
     scenarios = []
-    for nd in range(1, 5):
+    for nd in [1, 2, 3, 4]:
         sc_cfg = SimulationConfig(
             num_dispensers=nd,
-            arrival_rate=sc_arrival,
-            avg_service_time=avg_service_time,
-            service_time_std=service_time_std,
+            arrival_rate=benchmark_arrival,
+            avg_service_time=config.avg_service_time,
+            service_time_std=config.service_time_std,
             min_service_time=config.min_service_time,
             max_service_time=config.max_service_time,
             simulation_duration=config.simulation_duration,
             random_seed=config.random_seed,
         )
-        scenarios.append(ScenarioConfig(name=f"Scenario {chr(65+nd-1)} ({nd} disp.)", config=sc_cfg))
+        scenarios.append(ScenarioConfig(name=f"{nd} Pump{'s' if nd > 1 else ''}", config=sc_cfg))
 
-    if st.button("🔄 Run Scenario Comparison", key="run_scenarios", type="primary"):
-        with st.spinner("Running scenarios..."):
-            sc_results = ScenarioRunner.run_multiple(scenarios, repetitions=sc_reps)
-            st.session_state["sc_results"] = sc_results
+    sc_results = ScenarioRunner.run_multiple(scenarios, repetitions=benchmark_reps)
 
-    if "sc_results" in st.session_state:
-        sc_results = st.session_state["sc_results"]
+    # Results Table
+    sc_summary_data = []
+    for sr in sc_results:
+        rho_sc = traffic_intensity(sr.config.arrival_rate, 60.0 / sr.config.avg_service_time, sr.config.num_dispensers)
+        sc_summary_data.append({
+            "Configuration": sr.name,
+            "Pumps": sr.config.num_dispensers,
+            "Traffic Intensity (ρ)": f"{rho_sc:.3f}",
+            "Status": "🟢 Stable" if rho_sc < 0.8 else ("🟡 Congested" if rho_sc < 1.0 else "🔴 Saturated"),
+            "Avg Wait Time": f"{sr.metrics.avg_waiting_time:.2f} min",
+            "Max Queue Depth": f"{sr.metrics.max_queue_length} veh",
+            "Pump Utilization": f"{sr.metrics.avg_utilisation:.1%}",
+            "Throughput": f"{sr.metrics.throughput_per_hour:.1f} veh/hr",
+        })
+    st.dataframe(pd.DataFrame(sc_summary_data), use_container_width=True, hide_index=True)
 
-        # Summary table
-        summary_rows = []
-        for sr in sc_results:
-            summary_rows.append({
-                "Scenario": sr.name,
-                "Dispensers": sr.config.num_dispensers,
-                "Avg Wait (min)": f"{sr.metrics.avg_waiting_time:.2f}",
-                "Max Queue": sr.metrics.max_queue_length,
-                "Utilisation": f"{sr.metrics.avg_utilisation:.1%}",
-                "Throughput (veh/hr)": f"{sr.metrics.throughput_per_hour:.1f}",
-            })
-        st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
+    # Comparison Grid Charts
+    sc_g1, sc_g2 = st.columns(2)
+    with sc_g1:
+        st.plotly_chart(scenario_waiting_time_chart(sc_results), use_container_width=True)
+    with sc_g2:
+        st.plotly_chart(scenario_queue_length_chart(sc_results), use_container_width=True)
 
-        # Charts
-        c1, c2 = st.columns(2)
-        with c1:
-            st.plotly_chart(scenario_waiting_time_chart(sc_results), use_container_width=True)
-        with c2:
-            st.plotly_chart(scenario_queue_length_chart(sc_results), use_container_width=True)
+    sc_g3, sc_g4 = st.columns(2)
+    with sc_g3:
+        st.plotly_chart(scenario_utilisation_chart(sc_results), use_container_width=True)
+    with sc_g4:
+        st.plotly_chart(scenario_throughput_chart(sc_results), use_container_width=True)
 
-        c3, c4 = st.columns(2)
-        with c3:
-            st.plotly_chart(scenario_utilisation_chart(sc_results), use_container_width=True)
-        with c4:
-            st.plotly_chart(scenario_throughput_chart(sc_results), use_container_width=True)
-
-        # Auto-generated summary
-        st.markdown("---")
-        summary_text = ScenarioRunner.generate_comparison_summary(sc_results)
-        st.markdown(summary_text)
+    # Recommendation
+    st.markdown("---")
+    st.markdown(ScenarioRunner.generate_comparison_summary(sc_results))
 
 # ════════════════════════════════════════
-# TAB 6 — What-If Analysis
+# TAB 6 — Sensitivity / What-If Studio
 # ════════════════════════════════════════
 with tabs[5]:
-    st.markdown("### What-If Analysis")
-    st.markdown("Experiment with parameters to see how they affect queue performance.")
+    st.markdown("### 🔮 Sensitivity & What-If Studio")
+    st.markdown("Stress-test parameter variations to locate critical inflection points and system saturation boundaries.")
 
     wi_col1, wi_col2 = st.columns(2)
-
     with wi_col1:
-        wi_param = st.selectbox(
-            "Parameter to vary",
-            ["Arrival Rate (veh/hr)", "Service Time (min)", "Number of Dispensers"],
-            key="wi_param",
+        param_to_vary = st.selectbox(
+            "Target Sensitivity Parameter",
+            ["Arrival Rate λ (veh/hr)", "Service Time μ⁻¹ (min)", "Number of Dispensers (c)"],
         )
-
     with wi_col2:
-        wi_steps = st.slider("Number of steps", 3, 10, 5, key="wi_steps")
+        sweep_resolution = st.slider("Sweep Resolution Steps", min_value=4, max_value=8, value=6)
 
-    if st.button("🔬 Run What-If Analysis", key="run_whatif", type="primary"):
-        with st.spinner("Running what-if simulations..."):
-            wi_results = []
+    # Run parameter sweep
+    if param_to_vary == "Arrival Rate λ (veh/hr)":
+        sweep_vals = np.linspace(10.0, 60.0, sweep_resolution)
+    elif param_to_vary == "Service Time μ⁻¹ (min)":
+        sweep_vals = np.linspace(2.0, 12.0, sweep_resolution)
+    else:
+        sweep_vals = np.arange(1, min(11, sweep_resolution + 2))
 
-            if wi_param == "Arrival Rate (veh/hr)":
-                values = np.linspace(5, 60, wi_steps)
-                for val in values:
-                    wi_cfg = SimulationConfig(
-                        num_dispensers=num_dispensers,
-                        arrival_rate=float(val),
-                        avg_service_time=avg_service_time,
-                        service_time_std=service_time_std,
-                        min_service_time=config.min_service_time,
-                        max_service_time=config.max_service_time,
-                        simulation_duration=config.simulation_duration,
-                        random_seed=config.random_seed,
-                    )
-                    sim = PetrolPumpSimulation(wi_cfg)
-                    res = sim.run()
-                    m = compute_metrics(res)
-                    wi_results.append({"param": float(val), "metrics": m, "config": wi_cfg})
-            elif wi_param == "Service Time (min)":
-                values = np.linspace(2, 15, wi_steps)
-                for val in values:
-                    wi_cfg = SimulationConfig(
-                        num_dispensers=num_dispensers,
-                        arrival_rate=arrival_rate,
-                        avg_service_time=float(val),
-                        service_time_std=service_time_std,
-                        min_service_time=max(1.0, float(val) - 3*service_time_std),
-                        max_service_time=float(val) + 3*service_time_std,
-                        simulation_duration=config.simulation_duration,
-                        random_seed=config.random_seed,
-                    )
-                    sim = PetrolPumpSimulation(wi_cfg)
-                    res = sim.run()
-                    m = compute_metrics(res)
-                    wi_results.append({"param": float(val), "metrics": m, "config": wi_cfg})
-            else:  # Number of Dispensers
-                values = list(range(1, wi_steps + 1))
-                for val in values:
-                    wi_cfg = SimulationConfig(
-                        num_dispensers=int(val),
-                        arrival_rate=arrival_rate,
-                        avg_service_time=avg_service_time,
-                        service_time_std=service_time_std,
-                        min_service_time=config.min_service_time,
-                        max_service_time=config.max_service_time,
-                        simulation_duration=config.simulation_duration,
-                        random_seed=config.random_seed,
-                    )
-                    sim = PetrolPumpSimulation(wi_cfg)
-                    res = sim.run()
-                    m = compute_metrics(res)
-                    wi_results.append({"param": float(val), "metrics": m, "config": wi_cfg})
-
-            st.session_state["wi_results"] = wi_results
-            st.session_state["wi_param_name"] = wi_param
-
-    if "wi_results" in st.session_state:
-        wi_results = st.session_state["wi_results"]
-        param_name = st.session_state["wi_param_name"]
-
-        params = [w["param"] for w in wi_results]
-        avg_waits = [w["metrics"].avg_waiting_time for w in wi_results]
-        max_qlens = [w["metrics"].max_queue_length for w in wi_results]
-        utils = [w["metrics"].avg_utilisation * 100 for w in wi_results]
-        throughputs = [w["metrics"].throughput_per_hour for w in wi_results]
-
-        import plotly.graph_objects as go
-        from visualization.charts import ACCENT, BG_DARK, TEXT_COLOR, GRID_COLOR, COMMON_LAYOUT
-
-        c1, c2 = st.columns(2)
-        with c1:
-            fig1 = go.Figure()
-            fig1.add_trace(go.Scatter(x=params, y=avg_waits, mode="lines+markers",
-                                      line=dict(color=ACCENT, width=2), marker=dict(size=8)))
-            fig1.update_layout(title="Avg Waiting Time", xaxis_title=param_name,
-                               yaxis_title="Minutes", **COMMON_LAYOUT)
-            st.plotly_chart(fig1, use_container_width=True)
-
-        with c2:
-            fig2 = go.Figure()
-            fig2.add_trace(go.Scatter(x=params, y=max_qlens, mode="lines+markers",
-                                      line=dict(color="#3498db", width=2), marker=dict(size=8)))
-            fig2.update_layout(title="Max Queue Length", xaxis_title=param_name,
-                               yaxis_title="Vehicles", **COMMON_LAYOUT)
-            st.plotly_chart(fig2, use_container_width=True)
-
-        c3, c4 = st.columns(2)
-        with c3:
-            fig3 = go.Figure()
-            fig3.add_trace(go.Scatter(x=params, y=utils, mode="lines+markers",
-                                      line=dict(color="#f39c12", width=2), marker=dict(size=8)))
-            fig3.update_layout(title="Dispenser Utilisation", xaxis_title=param_name,
-                               yaxis_title="Utilisation (%)", **COMMON_LAYOUT)
-            st.plotly_chart(fig3, use_container_width=True)
-
-        with c4:
-            fig4 = go.Figure()
-            fig4.add_trace(go.Scatter(x=params, y=throughputs, mode="lines+markers",
-                                      line=dict(color="#e74c3c", width=2), marker=dict(size=8)))
-            fig4.update_layout(title="Throughput", xaxis_title=param_name,
-                               yaxis_title="Vehicles/Hour", **COMMON_LAYOUT)
-            st.plotly_chart(fig4, use_container_width=True)
-
-        # Stability warnings
-        unstable_points = []
-        for w in wi_results:
-            c = w["config"]
-            mu = 60.0 / c.avg_service_time
-            rho = c.arrival_rate / (c.num_dispensers * mu)
-            if rho >= 1:
-                unstable_points.append(w["param"])
-
-        if unstable_points:
-            st.warning(
-                f"⚠️ The system becomes unstable (ρ ≥ 1) at: "
-                f"{', '.join(f'{p:.1f}' for p in unstable_points)}. "
-                "At these points, queues grow without bound."
+    wi_data = []
+    for val in sweep_vals:
+        if param_to_vary == "Arrival Rate λ (veh/hr)":
+            cfg_s = SimulationConfig(
+                num_dispensers=config.num_dispensers,
+                arrival_rate=float(val),
+                avg_service_time=config.avg_service_time,
+                service_time_std=config.service_time_std,
+                min_service_time=config.min_service_time,
+                max_service_time=config.max_service_time,
+                simulation_duration=config.simulation_duration,
+                random_seed=config.random_seed,
+            )
+        elif param_to_vary == "Service Time μ⁻¹ (min)":
+            cfg_s = SimulationConfig(
+                num_dispensers=config.num_dispensers,
+                arrival_rate=config.arrival_rate,
+                avg_service_time=float(val),
+                service_time_std=min(config.service_time_std, float(val) / 2.0),
+                min_service_time=max(1.0, float(val) - 2.0),
+                max_service_time=float(val) + 2.0,
+                simulation_duration=config.simulation_duration,
+                random_seed=config.random_seed,
+            )
+        else:
+            cfg_s = SimulationConfig(
+                num_dispensers=int(val),
+                arrival_rate=config.arrival_rate,
+                avg_service_time=config.avg_service_time,
+                service_time_std=config.service_time_std,
+                min_service_time=config.min_service_time,
+                max_service_time=config.max_service_time,
+                simulation_duration=config.simulation_duration,
+                random_seed=config.random_seed,
             )
 
+        sim_s = PetrolPumpSimulation(cfg_s)
+        res_s = sim_s.run()
+        met_s = compute_metrics(res_s)
+        rho_s = traffic_intensity(cfg_s.arrival_rate, 60.0 / cfg_s.avg_service_time, cfg_s.num_dispensers)
+        wi_data.append({
+            "val": float(val),
+            "wait": met_s.avg_waiting_time,
+            "queue": met_s.max_queue_length,
+            "util": met_s.avg_utilisation * 100.0,
+            "throughput": met_s.throughput_per_hour,
+            "rho": rho_s,
+        })
+
+    # Render Curves
+    x_vals = [d["val"] for d in wi_data]
+    
+    wi_c1, wi_c2 = st.columns(2)
+    with wi_c1:
+        f1 = go.Figure()
+        f1.add_trace(go.Scatter(
+            x=x_vals, y=[d["wait"] for d in wi_data],
+            mode="lines+markers", line=dict(color=COLOR_CYAN, width=3),
+            marker=dict(size=8, color=COLOR_CYAN), name="Avg Wait Time",
+        ))
+        f1.update_layout(title="<b>Impact on Average Wait Time</b>", xaxis_title=param_to_vary, yaxis_title="Wait Time (min)", **COMMON_LAYOUT)
+        st.plotly_chart(f1, use_container_width=True)
+
+    with wi_c2:
+        f2 = go.Figure()
+        f2.add_trace(go.Scatter(
+            x=x_vals, y=[d["queue"] for d in wi_data],
+            mode="lines+markers", line=dict(color=COLOR_AMBER, width=3),
+            marker=dict(size=8, color=COLOR_AMBER), name="Peak Queue",
+        ))
+        f2.update_layout(title="<b>Impact on Peak Queue Depth</b>", xaxis_title=param_to_vary, yaxis_title="Vehicles", **COMMON_LAYOUT)
+        st.plotly_chart(f2, use_container_width=True)
+
 # ════════════════════════════════════════
-# TAB 7 — Mathematical Model
+# TAB 7 — Mathematical Model & Theory
 # ════════════════════════════════════════
 with tabs[6]:
-    st.markdown("### Mathematical Foundation")
+    st.markdown("### 📖 Mathematical Foundations & Stochastic Model Formulation")
+    
+    st.markdown(r"""
+#### 1. Stochastic Arrival Process: Poisson Process & Exponential Inter-arrivals
+Incoming customer demand is represented as a homogeneous **Poisson Process** with mean arrival rate $\lambda$ (vehicles per hour):
 
-    st.markdown("""
-#### 1. Poisson Arrival Process
+$$P(N(t) = k) = \frac{(\lambda t)^k e^{-\lambda t}}{k!}, \quad k = 0, 1, 2, \dots$$
 
-Vehicles arrive at the petrol station according to a **Poisson process** with rate λ (vehicles per hour).
-The number of arrivals in any time interval of length *t* follows a Poisson distribution:
+The elapsed duration between successive vehicle arrivals (inter-arrival time $\Delta t$) follows an **Exponential Distribution**:
 
-> P(N(t) = k) = (λt)ᵏ · e⁻λᵗ / k!
+$$f(\Delta t) = \lambda e^{-\lambda \Delta t}, \quad \Delta t \ge 0$$
 
-The **inter-arrival times** between consecutive vehicles are exponentially distributed:
+In our simulation engine, variates are synthesized via the **Inverse-Transform Sampling Method**:
 
-> f(t) = λ · e⁻λᵗ, for t ≥ 0
-
-We generate inter-arrival times using the **inverse transform method**:
-
-> Inter-arrival time = −ln(U) / λ
-
-where U is a uniform random number on (0, 1).
+$$\Delta t = -\frac{\ln(U)}{\lambda}, \quad U \sim \text{Uniform}(0, 1)$$
 
 ---
 
-#### 2. Service Time Distribution
+#### 2. Service Duration Model: Truncated Normal Distribution
+Unlike simple analytical $M/M/c$ models that assume exponential service times, real-world fuel transactions have physical minimums (nozzle insertion, payment authentication) and maximums. We therefore formulate service duration $S$ using a **Truncated Normal Distribution**:
 
-Each vehicle requires a random amount of time for fueling. We model this with a
-**truncated normal distribution** bounded between a minimum and maximum service time:
-
-> Service time ~ TruncatedNormal(μ, σ², a, b)
+$$f(S; \mu, \sigma, a, b) = \frac{\frac{1}{\sigma}\phi\left(\frac{S - \mu}{\sigma}\right)}{\Phi\left(\frac{b - \mu}{\sigma}\right) - \Phi\left(\frac{a - \mu}{\sigma}\right)}, \quad a \le S \le b$$
 
 Where:
-- μ = average service time
-- σ = standard deviation
-- a = minimum service time
-- b = maximum service time
-
-This ensures realistic service times that cannot be negative or unreasonably long.
+- $\mu$: Configured average service duration
+- $\sigma$: Standard deviation (variability)
+- $a$: Physical minimum bound ($\ge 1.0$ min)
+- $b$: Upper truncation cutoff
 
 ---
 
-#### 3. Multi-Server Queue Model (M/G/c)
-
-The petrol station is modelled as an **M/G/c queue**:
-- **M** — Markovian (Poisson) arrivals
-- **G** — General (truncated normal) service times
-- **c** — Number of fuel dispensers (servers)
-
-Queue discipline: **First Come, First Served (FCFS)**.
+#### 3. Kendall Notation & Queue Classification
+The station is mathematically designated as an **$M/G/c/\infty/\text{FCFS}$** system:
+- **$M$**: Markovian (Poisson) arrival distribution
+- **$G$**: General (Truncated Normal) service time distribution
+- **$c$**: Number of identical fuel dispenser servers
+- **$\infty$**: Infinite queue holding capacity
+- **$\text{FCFS}$**: First-Come, First-Served queue discipline
 
 ---
 
-#### 4. Traffic Intensity
+#### 4. Traffic Intensity & Ergodicity Boundary
+The stability parameter $\rho$ (traffic intensity or server utilization) is defined as:
 
-The traffic intensity (server utilisation) is:
+$$\rho = \frac{\lambda}{c \cdot \mu}$$
 
-> ρ = λ / (c × μ)
+Where $\mu = \frac{60}{\bar{S}}$ is the hourly service rate per dispenser.
 
-Where:
-- λ = arrival rate (vehicles per hour)
-- c = number of dispensers
-- μ = service rate per dispenser (vehicles per hour)
-
-**Stability condition**: The queue is stable (does not grow without bound) only when ρ < 1.
-
-When ρ ≥ 1, the arrival rate exceeds the system's service capacity, and queues will
-grow indefinitely over time.
+> **Mathematical Stability Criterion:**
+> - When **$\rho < 1$**: The queueing system is **ergodic (stable)**. A steady-state probability distribution exists, and queue lengths remain bounded.
+> - When **$\rho \ge 1$**: The system is **supercritical (unstable)**. The arrival rate outpaces service capacity; queue length $L(t) \to \infty$ as $t \to \infty$.
 
 ---
 
 #### 5. Little's Law
+For any stationary queueing system in equilibrium:
 
-**Little's Law** relates three fundamental quantities:
-
-> **L = λ · W**
+$$L = \lambda W \quad \text{and} \quad L_q = \lambda W_q$$
 
 Where:
-- L = average number of vehicles in the system (or queue)
-- λ = average arrival rate
-- W = average time spent in the system (or queue)
-
-This relationship holds for **any** stable queueing system regardless of the arrival
-distribution, service distribution, or number of servers.
-
----
-
-#### 6. Discrete-Event Simulation
-
-Rather than solving the queue mathematically (which is only tractable for simple models),
-we use **discrete-event simulation (DES)**:
-
-1. **Events** (arrivals, service starts, departures) are scheduled on a timeline.
-2. The simulation clock jumps from one event to the next.
-3. State variables (queue length, server status) are updated at each event.
-4. Statistics are collected throughout the run.
-
-We use the **SimPy** library, which provides a process-based DES framework in Python.
-
----
-
-#### 7. Assumptions and Limitations
-
-| Assumption | Justification |
-|---|---|
-| Poisson arrivals | Standard model for random, independent arrivals |
-| Independent service times | Each vehicle's fueling is independent |
-| Single queue | All vehicles share one FCFS queue |
-| No vehicle abandonment | Vehicles never leave without fueling |
-| No breakdowns | Dispensers do not fail during simulation |
-| Infinite queue capacity | No limit on how many vehicles can wait |
-| Steady-state analysis | Transient warm-up effects are not removed |
-
-These simplifications make the model tractable while capturing the essential dynamics
-of queue formation at a petrol station.
+- $L$: Average number of vehicles in the station
+- $L_q$: Average number of vehicles waiting in queue
+- $W$: Mean total time in station
+- $W_q$: Mean waiting time prior to service start
 """)
-
