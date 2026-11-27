@@ -3,567 +3,399 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PetroFlow • Petrol Pump Queue Simulation &amp; Modelling</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛽</text></svg>" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <title>Petrol Pump Queue Simulation</title>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body, {delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]});"></script>
   <style>
     :root {
-      --bg-base: #080c14;
-      --bg-sidebar: #0d121f;
-      --bg-card: rgba(17, 24, 39, 0.72);
-      --bg-card-solid: #111827;
-      --border: rgba(255, 255, 255, 0.08);
-      --emerald: #10b981;
-      --cyan: #06b6d4;
-      --blue: #3b82f6;
-      --amber: #f59e0b;
-      --rose: #ef4444;
-      --purple: #8b5cf6;
-      --text-main: #f1f5f9;
-      --text-muted: #94a3b8;
-      --text-dim: #64748b;
+      --bg: #111317;
+      --surface: #181b20;
+      --surface-alt: #1f2329;
+      --border: #2c313a;
+      --accent: #3b82f6;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
     }
 
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; border-radius: 2px; }
     html, body {
       margin: 0;
       padding: 0;
-      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-      background-color: var(--bg-base);
-      background-image: radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.07) 0%, var(--bg-base) 70%);
-      color: var(--text-main);
-      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
     }
 
-    .app-shell {
+    .layout {
       display: flex;
       min-height: 100vh;
     }
 
     /* Sidebar */
     .sidebar {
-      width: 310px;
+      width: 270px;
       flex-shrink: 0;
-      background: var(--bg-sidebar);
+      background: var(--surface);
       border-right: 1px solid var(--border);
-      padding: 22px 20px;
+      padding: 20px 18px;
       display: flex;
       flex-direction: column;
       gap: 14px;
-      position: sticky;
-      top: 0;
-      height: 100vh;
-      overflow-y: auto;
     }
 
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding-bottom: 14px;
+    .sidebar h1 {
+      font-size: 15px;
+      font-weight: 600;
+      margin: 0 0 4px 0;
+      color: var(--text);
+      padding-bottom: 10px;
       border-bottom: 1px solid var(--border);
     }
-    .brand-title { font-weight: 800; font-size: 1.15rem; color: #fff; letter-spacing: -0.02em; }
-    .brand-sub { font-size: 0.7rem; color: var(--emerald); font-weight: 700; letter-spacing: 0.04em; }
 
-    .sidebar-section-title {
-      font-size: 0.78rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--text-muted);
-      margin: 6px 0 4px;
-    }
-
-    .control-group {
+    .field {
       display: flex;
       flex-direction: column;
-      gap: 5px;
+      gap: 4px;
     }
-    .control-label {
+    .field-label {
       display: flex;
       justify-content: space-between;
-      font-size: 0.82rem;
-      color: var(--text-main);
-      font-weight: 500;
+      font-size: 12px;
+      color: var(--muted);
     }
-    .control-val {
-      font-family: 'JetBrains Mono', monospace;
-      color: var(--emerald);
+    .field-val {
+      font-family: Consolas, "Courier New", monospace;
+      color: var(--text);
       font-weight: 600;
-      font-size: 0.8rem;
     }
 
     input[type="range"] {
-      -webkit-appearance: none;
       width: 100%;
-      height: 5px;
-      background: rgba(255,255,255,0.12);
-      border-radius: 999px;
-      outline: none;
-    }
-    input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 15px;
-      height: 15px;
-      border-radius: 50%;
-      background: var(--emerald);
+      accent-color: var(--accent);
       cursor: pointer;
-      box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
     }
 
-    select, input[type="number"] {
+    input[type="number"], select {
       width: 100%;
-      background: rgba(17, 24, 39, 0.9);
+      background: var(--bg);
       border: 1px solid var(--border);
-      color: var(--text-main);
-      padding: 8px 10px;
-      border-radius: 8px;
-      font-family: inherit;
-      font-size: 0.84rem;
-      outline: none;
-    }
-    select:focus, input[type="number"]:focus {
-      border-color: var(--emerald);
-    }
-
-    .rho-box {
-      background: rgba(15, 23, 42, 0.8);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 12px;
-      margin-top: 4px;
-    }
-    .rho-bar-bg {
-      width: 100%;
-      height: 6px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 999px;
-      overflow: hidden;
-      margin: 6px 0;
-    }
-    .rho-bar-fill {
-      height: 100%;
-      transition: width 0.25s ease, background 0.25s ease;
-    }
-
-    .btn-primary {
-      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-      color: #fff;
-      font-weight: 700;
-      font-size: 0.86rem;
-      border: none;
-      border-radius: 8px;
-      padding: 10px 16px;
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      color: var(--text);
+      padding: 6px 8px;
+      font-size: 13px;
       font-family: inherit;
     }
-    .btn-primary:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
-    }
-    .btn-secondary {
-      background: rgba(30, 41, 59, 0.8);
-      color: var(--text-main);
+
+    .btn {
+      background: var(--accent);
+      color: #ffffff;
+      border: 1px solid var(--accent);
+      padding: 8px 12px;
+      font-size: 13px;
       font-weight: 600;
-      font-size: 0.82rem;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 8px 14px;
       cursor: pointer;
       font-family: inherit;
-      transition: background 0.15s ease;
     }
-    .btn-secondary:hover {
-      background: rgba(51, 65, 85, 0.8);
-    }
+    .btn:hover { opacity: 0.9; }
 
-    /* Main Content */
+    .btn-outline {
+      background: var(--surface-alt);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .btn-outline:hover { background: #262b33; }
+
+    .theory-box {
+      border: 1px solid var(--border);
+      background: var(--bg);
+      padding: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .theory-box div {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 3px;
+    }
+    .theory-box strong { color: var(--text); font-family: Consolas, "Courier New", monospace; }
+
+    /* Main */
     .main {
       flex: 1;
-      padding: 24px 30px;
-      max-width: 1480px;
+      padding: 20px 26px;
+      max-width: 1360px;
       overflow-x: hidden;
     }
 
-    /* Hero Banner */
-    .hero-banner {
-      background: linear-gradient(135deg, rgba(17, 24, 39, 0.85) 0%, rgba(15, 23, 42, 0.65) 100%);
-      backdrop-filter: blur(12px);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 20px 26px;
-      margin-bottom: 20px;
+    .topbar {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+      margin-bottom: 16px;
       flex-wrap: wrap;
-      gap: 16px;
-    }
-    .hero-title {
-      font-size: 1.55rem;
-      font-weight: 800;
-      color: #fff;
-      margin: 0;
-      letter-spacing: -0.03em;
-    }
-    .hero-title span.sub {
-      font-weight: 400;
-      color: var(--text-muted);
-      font-size: 1.15rem;
-    }
-    .hero-desc {
-      font-size: 0.84rem;
-      color: var(--text-muted);
-      margin: 4px 0 0;
+      gap: 12px;
     }
 
-    /* Status Pills */
-    .status-pill {
-      display: inline-flex;
-      align-items: center;
-      padding: 4px 11px;
-      border-radius: 9999px;
-      font-size: 0.74rem;
-      font-weight: 600;
-    }
-    .pill-green { background: rgba(16, 185, 129, 0.18); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
-    .pill-amber { background: rgba(245, 158, 11, 0.18); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
-    .pill-rose  { background: rgba(239, 68, 68, 0.18);  color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
-    .pill-blue  { background: rgba(59, 130, 246, 0.18); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
-
-    /* Tabs */
-    .tabs-bar {
+    .nav {
       display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      background: rgba(17, 24, 39, 0.65);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 5px;
-      margin-bottom: 22px;
+      gap: 4px;
     }
-    .tab-btn {
+    .nav-btn {
       background: transparent;
-      border: none;
-      color: var(--text-muted);
-      font-family: inherit;
-      font-weight: 600;
-      font-size: 0.84rem;
-      padding: 9px 15px;
-      border-radius: 8px;
+      border: 1px solid transparent;
+      color: var(--muted);
+      padding: 6px 14px;
+      font-size: 13px;
+      font-weight: 500;
       cursor: pointer;
-      transition: all 0.2s ease;
+      font-family: inherit;
     }
-    .tab-btn:hover { color: #fff; background: rgba(255,255,255,0.04); }
-    .tab-btn.active {
-      background: var(--emerald);
-      color: #064e3b;
-      font-weight: 700;
-      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-    }
-
-    .tab-panel { display: none; }
-    .tab-panel.active { display: block; }
-
-    /* Grids */
-    .grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
-    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
-    .grid-diag { display: grid; grid-template-columns: 1.5fr 1fr; gap: 18px; margin-top: 18px; }
-    .grid-station { display: grid; grid-template-columns: 1.1fr 2.2fr 0.9fr; gap: 16px; }
-
-    @media (max-width: 1100px) {
-      .app-shell { flex-direction: column; }
-      .sidebar { width: 100%; height: auto; position: static; }
-      .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .grid-2, .grid-diag, .grid-station { grid-template-columns: 1fr; }
-    }
-    @media (max-width: 640px) {
-      .grid-4 { grid-template-columns: 1fr; }
+    .nav-btn:hover { color: var(--text); }
+    .nav-btn.active {
+      background: var(--surface);
+      border-color: var(--border);
+      color: var(--text);
+      font-weight: 600;
     }
 
-    /* KPI Cards */
-    .kpi-card {
-      background: var(--bg-card);
-      backdrop-filter: blur(16px);
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* Metrics Table (replaces 4 side-by-side cards) */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .box {
+      background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 18px 20px;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-      transition: transform 0.2s ease, border-color 0.2s ease;
+      padding: 14px 16px;
     }
-    .kpi-card:hover {
-      border-color: rgba(16, 185, 129, 0.4);
-      transform: translateY(-2px);
-    }
-    .kpi-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-    .kpi-icon {
-      display: inline-flex; align-items: center; justify-content: center;
-      width: 36px; height: 36px; border-radius: 10px; font-size: 1.1rem;
-    }
-    .icon-emerald { background: rgba(16, 185, 129, 0.15); color: #10b981; }
-    .icon-blue    { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
-    .icon-amber   { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
-    .icon-purple  { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
-    .kpi-tag { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
-    .kpi-value { font-size: 2rem; font-weight: 800; color: #fff; letter-spacing: -0.03em; line-height: 1.1; }
-    .kpi-unit { font-size: 0.95rem; font-weight: 500; color: var(--text-muted); }
-    .kpi-label { font-size: 0.85rem; font-weight: 500; color: var(--text-muted); margin-top: 4px; }
-    .kpi-footer { margin-top: 14px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06); font-size: 0.78rem; color: #cbd5e1; }
-
-    /* Panels / Cards */
-    .glass-panel {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 18px 22px;
+    .box h2 {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      margin: 0 0 10px 0;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
     }
 
-    /* Tables */
-    .table-wrap {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: auto;
-      max-height: 360px;
-    }
-    table {
+    .kv-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.82rem;
+      font-size: 13px;
     }
-    th {
+    .kv-table td {
+      padding: 6px 4px;
+      border-bottom: 1px solid #22262e;
+    }
+    .kv-table tr:last-child td { border-bottom: none; }
+    .kv-table td.val {
+      text-align: right;
+      font-family: Consolas, "Courier New", monospace;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    /* Data Tables */
+    .table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      overflow: auto;
+      max-height: 380px;
+    }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    table.data-table th {
       position: sticky;
       top: 0;
-      background: #0f172a;
-      color: var(--text-muted);
-      font-weight: 700;
+      background: var(--surface-alt);
+      color: var(--muted);
+      font-weight: 600;
       text-align: left;
-      padding: 10px 14px;
+      padding: 8px 12px;
       border-bottom: 1px solid var(--border);
       white-space: nowrap;
     }
-    td {
-      padding: 9px 14px;
-      border-bottom: 1px solid rgba(255,255,255,0.04);
-      color: #e2e8f0;
+    table.data-table td {
+      padding: 7px 12px;
+      border-bottom: 1px solid #22262e;
+      font-family: Consolas, "Courier New", monospace;
       white-space: nowrap;
     }
-    tr:hover td { background: rgba(255,255,255,0.03); }
+    table.data-table tr:hover td { background: #1d2128; }
 
-    /* Live Station Visualizer */
-    .station-terminal-header {
-      background: rgba(17, 24, 39, 0.85);
+    /* Station View */
+    .playback {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 16px 20px;
+      padding: 10px 14px;
       margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .station-cols {
+      display: grid;
+      grid-template-columns: 1fr 1.6fr 1fr;
+      gap: 16px;
+    }
+    .pump-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    .pump-item {
+      border: 1px solid var(--border);
+      background: var(--bg);
+      padding: 10px 12px;
+      font-size: 12px;
+    }
+    .pump-item.busy { border-color: var(--accent); }
+    .list-item {
+      border-bottom: 1px solid #22262e;
+      padding: 6px 0;
+      font-size: 12px;
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 12px;
+      font-family: Consolas, "Courier New", monospace;
     }
-    .pulse-indicator {
-      width: 10px; height: 10px; border-radius: 50%; background: var(--emerald);
-      animation: pulse 1.8s infinite;
-    }
-    @keyframes pulse {
-      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-      70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
-      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-    }
-    .station-chip { font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 6px; }
-    .chip-blue    { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
-    .chip-amber   { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
-    .chip-emerald { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
 
-    .lane-container {
-      background: rgba(15, 23, 42, 0.55);
-      border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 14px;
-      padding: 16px;
-      min-height: 430px;
-    }
-    .lane-title {
-      display: flex; justify-content: space-between; align-items: center;
-      font-size: 0.8rem; font-weight: 700; color: var(--text-muted);
-      letter-spacing: 0.04em; margin-bottom: 12px; padding-bottom: 8px;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-    }
-    .lane-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; background: rgba(255,255,255,0.08); color: #cbd5e1; }
-
-    .queue-vehicle-card {
-      background: rgba(30, 41, 59, 0.75);
-      border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 8px;
-      padding: 9px 12px;
-      margin-bottom: 8px;
-    }
-    .pumps-grid {
+    /* Charts */
+    .charts-grid {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
     }
-    .dispenser-box { border-radius: 12px; padding: 14px; }
-    .bay-active {
-      background: linear-gradient(145deg, rgba(14, 165, 233, 0.14), rgba(15, 23, 42, 0.85));
-      border: 1.5px solid rgba(14, 165, 233, 0.45);
-      box-shadow: 0 0 15px rgba(14, 165, 233, 0.15);
-    }
-    .bay-idle {
-      background: rgba(30, 41, 59, 0.4);
-      border: 1px dashed rgba(255,255,255,0.12);
-    }
-    .bay-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-    .bay-num { font-size: 0.74rem; font-weight: 800; color: var(--text-muted); letter-spacing: 0.05em; }
-    .progress-container { width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden; margin: 8px 0 6px; }
-    .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #0ea5e9, #10b981); border-radius: 999px; transition: width 0.2s ease; }
-
-    .exit-card {
-      background: rgba(30, 41, 59, 0.55);
-      border: 1px solid rgba(255,255,255,0.05);
-      border-radius: 8px;
-      padding: 8px 12px;
-      margin-bottom: 6px;
-    }
-
-    .playback-bar {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-bottom: 16px;
-      background: var(--bg-card);
+    .chart-box {
+      background: var(--surface);
       border: 1px solid var(--border);
-      padding: 12px 16px;
-      border-radius: 12px;
+      padding: 8px;
     }
 
-    .chart-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 10px;
+    .math-section h3 {
+      font-size: 14px;
+      margin: 16px 0 6px;
+      color: var(--text);
+    }
+    .math-section p, .math-section li {
+      font-size: 13px;
+      color: var(--muted);
     }
 
-    .math-doc h4 { color: var(--emerald); margin-top: 20px; margin-bottom: 8px; }
-    .math-doc p, .math-doc li { color: #cbd5e1; line-height: 1.7; font-size: 0.92rem; }
-    .math-doc hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+    @media (max-width: 960px) {
+      .layout { flex-direction: column; }
+      .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
+      .metrics-grid, .charts-grid, .station-cols { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
-  <div class="app-shell">
+  <div class="layout">
     <!-- SIDEBAR -->
     <aside class="sidebar">
-      <div class="brand">
-        <span style="font-size: 1.8rem;">⛽</span>
-        <div>
-          <div class="brand-title">PETROFLOW</div>
-          <div class="brand-sub">SIMULATION ENGINE v2.0</div>
-        </div>
-      </div>
+      <h1>Petrol Pump Simulation</h1>
 
-      <div>
-        <div class="sidebar-section-title">⚡ Quick Presets</div>
-        <select id="presetSelect">
-          <option value="">Select a preset...</option>
-          <option value="urban">Urban Commute (Balanced)</option>
-          <option value="rush">Morning Peak Rush</option>
-          <option value="highway">Highway Mega-Station</option>
-          <option value="bottleneck">Severe Bottleneck (Stress Test)</option>
-        </select>
-      </div>
-
-      <div class="sidebar-section-title">🎛️ Station Parameters</div>
-
-      <div class="control-group">
-        <div class="control-label"><span>Fuel Dispensers (c)</span><span class="control-val" id="valDispensers">3</span></div>
+      <div class="field">
+        <div class="field-label"><span>Dispensers (c)</span><span class="field-val" id="valDispensers">3</span></div>
         <input type="range" id="inDispensers" min="1" max="10" step="1" value="3" />
       </div>
 
-      <div class="control-group">
-        <div class="control-label"><span>Arrival Rate λ (veh/hr)</span><span class="control-val" id="valArrival">20</span></div>
+      <div class="field">
+        <div class="field-label"><span>Arrival Rate (veh/hr)</span><span class="field-val" id="valArrival">20</span></div>
         <input type="range" id="inArrival" min="1" max="120" step="1" value="20" />
       </div>
 
-      <div class="control-group">
-        <div class="control-label"><span>Avg Service Time (min)</span><span class="control-val" id="valService">5.0</span></div>
+      <div class="field">
+        <div class="field-label"><span>Avg Service Time (min)</span><span class="field-val" id="valService">5.0</span></div>
         <input type="range" id="inService" min="1" max="20" step="0.5" value="5.0" />
       </div>
 
-      <div class="control-group">
-        <div class="control-label"><span>Service Std Dev σ (min)</span><span class="control-val" id="valStd">1.5</span></div>
+      <div class="field">
+        <div class="field-label"><span>Service Std Dev (min)</span><span class="field-val" id="valStd">1.5</span></div>
         <input type="range" id="inStd" min="0" max="5" step="0.1" value="1.5" />
       </div>
 
-      <div class="sidebar-section-title">⏱️ Simulation Settings</div>
-
-      <div class="control-group">
-        <div class="control-label"><span>Run Duration (min)</span><span class="control-val" id="valDuration">120</span></div>
+      <div class="field">
+        <div class="field-label"><span>Duration (min)</span><span class="field-val" id="valDuration">120</span></div>
         <input type="range" id="inDuration" min="30" max="480" step="10" value="120" />
       </div>
 
-      <div class="control-group">
-        <div class="control-label"><span>Stochastic Seed</span></div>
+      <div class="field">
+        <div class="field-label"><span>Random Seed</span></div>
         <input type="number" id="inSeed" min="0" max="99999" value="42" />
       </div>
 
-      <div class="rho-box" id="rhoBox"></div>
+      <div class="theory-box" id="theoryBox"></div>
 
-      <button class="btn-primary" id="btnRun">⚡ Run Simulation Engine</button>
+      <button class="btn" id="btnRun">Run Simulation</button>
     </aside>
 
-    <!-- MAIN CONTENT -->
+    <!-- MAIN -->
     <main class="main">
-      <div class="hero-banner" id="heroBanner"></div>
-
-      <div class="tabs-bar">
-        <button class="tab-btn active" data-tab="tab-overview">📊 KPI Overview</button>
-        <button class="tab-btn" data-tab="tab-live">🏗️ Live Station Visualizer</button>
-        <button class="tab-btn" data-tab="tab-analytics">📈 Queue &amp; Traffic Analytics</button>
-        <button class="tab-btn" data-tab="tab-stats">📐 Statistical Deep-Dive</button>
-        <button class="tab-btn" data-tab="tab-scenarios">🔀 Multi-Scenario Benchmark</button>
-        <button class="tab-btn" data-tab="tab-whatif">🔮 Sensitivity / What-If</button>
-        <button class="tab-btn" data-tab="tab-math">📖 Mathematical Model</button>
+      <div class="topbar">
+        <div class="nav">
+          <button class="nav-btn active" data-tab="p-overview">Overview</button>
+          <button class="nav-btn" data-tab="p-station">Station View</button>
+          <button class="nav-btn" data-tab="p-charts">Charts</button>
+          <button class="nav-btn" data-tab="p-analysis">Analysis &amp; Model</button>
+        </div>
+        <div style="font-size: 12px; color: var(--muted);" id="engineInfo">Engine: Initializing</div>
       </div>
 
-      <!-- TAB 1: OVERVIEW -->
-      <section class="tab-panel active" id="tab-overview">
-        <div class="grid-4" id="kpiGrid"></div>
-        <div class="grid-diag" id="diagGrid"></div>
+      <!-- 1. OVERVIEW -->
+      <section class="panel active" id="p-overview">
+        <div class="metrics-grid">
+          <div class="box">
+            <h2>Simulated Throughput &amp; Queue Metrics</h2>
+            <table class="kv-table" id="tblPrimary"></table>
+          </div>
+          <div class="box">
+            <h2>Waiting Time &amp; Utilization Statistics</h2>
+            <table class="kv-table" id="tblSecondary"></table>
+          </div>
+        </div>
 
-        <div style="margin-top: 22px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 10px;">
-          <h3 style="margin: 0; font-size: 1.05rem;">📋 Vehicle Event Ledger</h3>
-          <div style="display: flex; gap: 10px; align-items: center;">
-            <select id="filterStatus" style="width: auto;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;">Vehicle Event Log</span>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <select id="filterStatus" style="width:auto;">
               <option value="all">All Statuses</option>
               <option value="completed">Completed</option>
               <option value="waiting">Waiting</option>
             </select>
-            <button class="btn-secondary" id="btnDownloadCsv">📥 Export CSV</button>
+            <button class="btn-outline" id="btnCsv">Export CSV</button>
           </div>
         </div>
         <div class="table-wrap">
-          <table>
+          <table class="data-table">
             <thead>
               <tr>
-                <th>Vehicle ID</th>
+                <th>ID</th>
                 <th>Arrival (m)</th>
                 <th>Service Start (m)</th>
                 <th>Service End (m)</th>
-                <th>Wait Time (m)</th>
+                <th>Wait (m)</th>
                 <th>Service Dur (m)</th>
-                <th>Time in System (m)</th>
-                <th>Pump</th>
+                <th>Total Time (m)</th>
+                <th>Dispenser</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -572,188 +404,97 @@
         </div>
       </section>
 
-      <!-- TAB 2: LIVE VISUALIZER -->
-      <section class="tab-panel" id="tab-live">
-        <h3 style="margin-top:0;">🏗️ Forecourt Live Simulation Visualizer</h3>
-        <p style="color: var(--text-muted); font-size: 0.88rem; margin-top: -6px;">
-          Press Play or scrub the timeline to watch queue formation, dispenser allocation, and vehicle departures in real time.
-        </p>
-
-        <div class="playback-bar">
-          <button class="btn-primary" id="btnPlayPause">▶ Play</button>
-          <button class="btn-secondary" id="btnResetTime">⏮ Reset</button>
-          <select id="playSpeed" style="width: auto;">
-            <option value="1">1x Speed</option>
-            <option value="3" selected>3x Speed</option>
-            <option value="8">8x Speed</option>
+      <!-- 2. STATION VIEW -->
+      <section class="panel" id="p-station">
+        <div class="playback">
+          <button class="btn" id="btnPlayPause">Play</button>
+          <button class="btn-outline" id="btnReset">Reset</button>
+          <select id="playSpeed" style="width:auto;">
+            <option value="1">1x</option>
+            <option value="3" selected>3x</option>
+            <option value="8">8x</option>
           </select>
-          <div style="flex: 1; min-width: 200px; display: flex; align-items: center; gap: 12px;">
-            <input type="range" id="timeScrubber" min="0" max="120" step="0.5" value="120" />
-            <span class="control-val" id="timeLabel" style="min-width: 82px;">T = 120.0m</span>
+          <input type="range" id="timeScrubber" min="0" max="120" step="0.5" value="120" style="flex:1;min-width:180px;" />
+          <span class="field-val" id="timeLabel" style="min-width:75px;">T = 120.0m</span>
+        </div>
+        <div class="station-cols" id="stationView"></div>
+      </section>
+
+      <!-- 3. CHARTS -->
+      <section class="panel" id="p-charts">
+        <div class="charts-grid">
+          <div class="chart-box"><div id="chartQueue"></div></div>
+          <div class="chart-box"><div id="chartCum"></div></div>
+          <div class="chart-box"><div id="chartHist"></div></div>
+          <div class="chart-box"><div id="chartUtil"></div></div>
+        </div>
+      </section>
+
+      <!-- 4. ANALYSIS & MODEL -->
+      <section class="panel" id="p-analysis">
+        <div class="metrics-grid">
+          <div class="box">
+            <h2>Little's Law Verification (Simulated)</h2>
+            <table class="kv-table" id="tblLittles"></table>
           </div>
-        </div>
-
-        <div id="liveStationContainer"></div>
-      </section>
-
-      <!-- TAB 3: QUEUE ANALYTICS -->
-      <section class="tab-panel" id="tab-analytics">
-        <h3 style="margin-top:0;">📈 Forecourt Queue &amp; Velocity Analytics</h3>
-        <div class="grid-2">
-          <div class="chart-card"><div id="chartQueueLen"></div></div>
-          <div class="chart-card"><div id="chartArrivalsDep"></div></div>
-          <div class="chart-card"><div id="chartWaitDist"></div></div>
-          <div class="chart-card"><div id="chartPumpUtil"></div></div>
-        </div>
-      </section>
-
-      <!-- TAB 4: STATISTICAL DEEP-DIVE -->
-      <section class="tab-panel" id="tab-stats">
-        <h3 style="margin-top:0;">📐 Statistical Deep-Dive &amp; Queueing Theory Verification</h3>
-        <div class="grid-2">
-          <div class="glass-panel">
-            <h4 style="margin-top:0; color: var(--emerald);">Waiting Time Dispersion Metrics</h4>
-            <div class="table-wrap" style="max-height: none;">
-              <table>
-                <thead><tr><th>Metric</th><th>Value</th><th>Significance</th></tr></thead>
-                <tbody id="statsWaitBody"></tbody>
-              </table>
+          <div class="box">
+            <h2>Sensitivity Sweep</h2>
+            <div style="display:flex;gap:10px;margin-bottom:10px;">
+              <select id="wiParam">
+                <option value="arrival">Vary Arrival Rate (10-60 veh/hr)</option>
+                <option value="service">Vary Service Time (2-12 min)</option>
+                <option value="dispensers">Vary Dispensers (1-6)</option>
+              </select>
             </div>
-          </div>
-          <div class="glass-panel">
-            <h4 style="margin-top:0; color: var(--cyan);">Forecourt System Performance</h4>
-            <div class="table-wrap" style="max-height: none;">
-              <table>
-                <thead><tr><th>Metric</th><th>Value</th><th>Significance</th></tr></thead>
-                <tbody id="statsSysBody"></tbody>
-              </table>
-            </div>
+            <div id="chartWhatIf"></div>
           </div>
         </div>
 
-        <div class="glass-panel" style="margin-top: 20px;" id="littlesLawCard"></div>
-      </section>
-
-      <!-- TAB 5: SCENARIO COMPARISON -->
-      <section class="tab-panel" id="tab-scenarios">
-        <h3 style="margin-top:0;">🔀 Multi-Scenario Benchmark &amp; Capacity Planning</h3>
-        <p style="color: var(--text-muted); font-size: 0.88rem; margin-top: -6px;">
-          Comparing 1, 2, 3, and 4 dispenser configurations under identical arrival demand to identify optimal pump allocation.
-        </p>
-        <div class="glass-panel" style="margin-bottom: 18px; display: flex; gap: 24px; flex-wrap: wrap; align-items: center;">
-          <div style="flex: 1; min-width: 220px;">
-            <div class="control-label"><span>Benchmark Arrival Demand λ (veh/hr)</span><span class="control-val" id="valBenchArr">20</span></div>
-            <input type="range" id="inBenchArr" min="5" max="80" step="1" value="20" />
+        <div class="box" style="margin-bottom:16px;">
+          <h2>Dispenser Count Comparison (1 to 4 Dispensers)</h2>
+          <div style="display:flex;gap:14px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+            <label style="font-size:12px;color:var(--muted);">Arrival Rate (veh/hr):
+              <input type="number" id="inBenchArr" min="5" max="100" value="20" style="width:70px;display:inline-block;margin-left:4px;" />
+            </label>
+            <label style="font-size:12px;color:var(--muted);">Repetitions:
+              <input type="number" id="inBenchReps" min="1" max="10" value="3" style="width:60px;display:inline-block;margin-left:4px;" />
+            </label>
           </div>
-          <div style="flex: 1; min-width: 220px;">
-            <div class="control-label"><span>Replications per Configuration</span><span class="control-val" id="valBenchReps">3</span></div>
-            <input type="range" id="inBenchReps" min="1" max="10" step="1" value="3" />
-          </div>
-        </div>
-
-        <div class="table-wrap" style="margin-bottom: 18px;">
-          <table>
-            <thead>
-              <tr>
-                <th>Configuration</th>
-                <th>Pumps</th>
-                <th>Traffic Intensity (ρ)</th>
-                <th>Status</th>
-                <th>Avg Wait Time</th>
-                <th>Max Queue</th>
-                <th>Utilization</th>
-                <th>Throughput</th>
-              </tr>
-            </thead>
-            <tbody id="scenarioTableBody"></tbody>
-          </table>
-        </div>
-
-        <div class="grid-2">
-          <div class="chart-card"><div id="chartScWait"></div></div>
-          <div class="chart-card"><div id="chartScQueue"></div></div>
-          <div class="chart-card"><div id="chartScUtil"></div></div>
-          <div class="chart-card"><div id="chartScTp"></div></div>
-        </div>
-        <div class="glass-panel" style="margin-top: 18px;" id="scenarioSummary"></div>
-      </section>
-
-      <!-- TAB 6: WHAT-IF -->
-      <section class="tab-panel" id="tab-whatif">
-        <h3 style="margin-top:0;">🔮 Sensitivity &amp; What-If Studio</h3>
-        <p style="color: var(--text-muted); font-size: 0.88rem; margin-top: -6px;">
-          Sweep key operational parameters to observe non-linear queue growth and saturation thresholds.
-        </p>
-        <div class="glass-panel" style="margin-bottom: 18px; display: flex; gap: 24px; flex-wrap: wrap; align-items: center;">
-          <div style="flex: 1; min-width: 220px;">
-            <div class="control-label"><span>Target Parameter to Vary</span></div>
-            <select id="wiParam">
-              <option value="arrival">Arrival Rate λ (veh/hr)</option>
-              <option value="service">Average Service Time (min)</option>
-              <option value="dispensers">Number of Dispensers (c)</option>
-            </select>
-          </div>
-          <div style="flex: 1; min-width: 220px;">
-            <div class="control-label"><span>Sweep Resolution Steps</span><span class="control-val" id="valWiSteps">6</span></div>
-            <input type="range" id="inWiSteps" min="4" max="10" step="1" value="6" />
+          <div class="table-wrap" style="max-height:none;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Dispensers</th>
+                  <th>Traffic Intensity (ρ)</th>
+                  <th>Condition</th>
+                  <th>Avg Wait (min)</th>
+                  <th>Max Queue</th>
+                  <th>Avg Utilization</th>
+                  <th>Throughput (veh/hr)</th>
+                </tr>
+              </thead>
+              <tbody id="scenarioBody"></tbody>
+            </table>
           </div>
         </div>
-        <div class="grid-2">
-          <div class="chart-card"><div id="chartWiWait"></div></div>
-          <div class="chart-card"><div id="chartWiQueue"></div></div>
-        </div>
-      </section>
 
-      <!-- TAB 7: MATHEMATICAL MODEL -->
-      <section class="tab-panel" id="tab-math">
-        <div class="glass-panel math-doc">
-          <h3 style="margin-top: 0;">📖 Mathematical Foundations &amp; Stochastic Model Formulation</h3>
-
-          <h4>1. Stochastic Arrival Process: Poisson Process &amp; Exponential Inter-arrivals</h4>
-          <p>Incoming customer demand is represented as a homogeneous <strong>Poisson Process</strong> with mean arrival rate $\lambda$ (vehicles per hour):</p>
-          <p>$$P(N(t) = k) = \frac{(\lambda t)^k e^{-\lambda t}}{k!}, \quad k = 0, 1, 2, \dots$$</p>
-          <p>The elapsed duration between successive vehicle arrivals (inter-arrival time $\Delta t$) follows an <strong>Exponential Distribution</strong>:</p>
-          <p>$$f(\Delta t) = \lambda e^{-\lambda \Delta t}, \quad \Delta t \ge 0$$</p>
-          <p>Variates are synthesized in our engine via the <strong>Inverse-Transform Sampling Method</strong>:</p>
-          <p>$$\Delta t = -\frac{\ln(U)}{\lambda}, \quad U \sim \text{Uniform}(0, 1)$$</p>
-          <hr />
-
-          <h4>2. Service Duration Model: Truncated Normal Distribution</h4>
-          <p>Real-world fuel transactions have physical minimums (nozzle insertion, payment) and maximums. We formulate service duration $S$ using a <strong>Truncated Normal Distribution</strong>:</p>
-          <p>$$f(S; \mu, \sigma, a, b) = \frac{\frac{1}{\sigma}\phi\left(\frac{S - \mu}{\sigma}\right)}{\Phi\left(\frac{b - \mu}{\sigma}\right) - \Phi\left(\frac{a - \mu}{\sigma}\right)}, \quad a \le S \le b$$</p>
-          <hr />
-
-          <h4>3. Kendall Notation &amp; Queue Classification</h4>
-          <p>The petrol station is modeled as an <strong>$M/G/c/\infty/\text{FCFS}$</strong> multi-server queueing system:</p>
-          <ul>
-            <li><strong>$M$</strong>: Markovian (Poisson) arrival process</li>
-            <li><strong>$G$</strong>: General (Truncated Normal) service time distribution</li>
-            <li><strong>$c$</strong>: Number of parallel fuel dispenser servers</li>
-            <li><strong>$\infty$</strong>: Infinite queue holding capacity</li>
-            <li><strong>$\text{FCFS}$</strong>: First-Come, First-Served queue discipline</li>
-          </ul>
-          <hr />
-
-          <h4>4. Traffic Intensity &amp; Stability Criterion</h4>
-          <p>$$\rho = \frac{\lambda}{c \cdot \mu}$$</p>
-          <ul>
-            <li>When <strong>$\rho &lt; 1$</strong>: The system is <strong>ergodic (stable)</strong> and queue lengths remain bounded.</li>
-            <li>When <strong>$\rho \ge 1$</strong>: The system is <strong>supercritical (unstable)</strong>; arrival rate outpaces capacity and queues grow without bound.</li>
-          </ul>
-          <hr />
-
-          <h4>5. Little's Law</h4>
-          <p>For any stationary queueing system in equilibrium:</p>
-          <p>$$L = \lambda W \quad \text{and} \quad L_q = \lambda W_q$$</p>
+        <div class="box math-section">
+          <h2>Mathematical Model</h2>
+          <h3>1. Poisson Arrivals</h3>
+          <p>Inter-arrival times follow an exponential distribution generated via inverse transform: $\Delta t = -\ln(U) / \lambda$, where $U \sim \text{Uniform}(0,1)$.</p>
+          <h3>2. Service Times</h3>
+          <p>Service duration $S$ is sampled from a Truncated Normal distribution bounded by $[a, b]$ with mean $\mu$ and standard deviation $\sigma$.</p>
+          <h3>3. Multi-Server Queue (M/G/c, FCFS)</h3>
+          <p>Traffic intensity is $\rho = \lambda / (c \cdot \mu)$, where $\mu = 60 / \bar{S}$ is the hourly service rate per dispenser. The queue is stable when $\rho &lt; 1$ and unstable when $\rho \ge 1$.</p>
+          <h3>4. Little's Law</h3>
+          <p>In steady state, $L_q = \lambda W_q$ and $L = \lambda W$.</p>
         </div>
       </section>
     </main>
   </div>
 
   <script>
-    // =========================================================================
-    // 1. SEEDED PRNG & PROBABILITY DISTRIBUTIONS
-    // =========================================================================
+    // Seeded PRNG (fallback when static on GitHub Pages)
     function mulberry32(seed) {
       let a = seed >>> 0;
       return function() {
@@ -776,24 +517,16 @@
       return Math.min(hi, Math.max(lo, mu));
     }
 
-    // =========================================================================
-    // 2. DISCRETE-EVENT SIMULATION ENGINE (FCFS MULTI-SERVER M/G/c)
-    // =========================================================================
-    function runSimulation(cfg) {
+    function runSimulationJS(cfg) {
       const rng = mulberry32(cfg.randomSeed);
       const lamPerMin = cfg.arrivalRate / 60.0;
-
-      // Pre-generate arrivals within simulationDuration
       const vehicles = [];
-      let t = 0;
-      let vid = 0;
+      let t = 0, vid = 0;
       while (true) {
         const u = Math.max(rng(), 1e-10);
-        const iat = -Math.log(u) / lamPerMin;
-        t += iat;
+        t += -Math.log(u) / lamPerMin;
         if (t > cfg.simulationDuration) break;
         vid++;
-        const st = sampleTruncNorm(rng, cfg.avgServiceTime, cfg.serviceTimeStd, cfg.minServiceTime, cfg.maxServiceTime);
         vehicles.push({
           vehicleId: vid,
           arrivalTime: t,
@@ -801,91 +534,66 @@
           serviceStartTime: 0,
           serviceEndTime: 0,
           departureTime: 0,
-          serviceDuration: st,
+          serviceDuration: sampleTruncNorm(rng, cfg.avgServiceTime, cfg.serviceTimeStd, cfg.minServiceTime, cfg.maxServiceTime),
           dispenserId: -1,
           status: "waiting"
         });
       }
 
-      // Event-driven simulation
-      const dispensers = Array.from({ length: cfg.numDispensers }, (_, i) => ({
-        dispenserId: i,
-        busyUntil: 0,
-        records: []
-      }));
-
+      const dispensers = Array.from({ length: cfg.numDispensers }, (_, i) => ({ dispenserId: i, records: [] }));
       const freePumps = Array.from({ length: cfg.numDispensers }, (_, i) => i);
       const waitingQueue = [];
       const queueLengthOverTime = [];
-      const maxSimEnd = cfg.simulationDuration + 60.0;
-
-      // Build event priority list (sorted by time)
       const events = vehicles.map((v, idx) => ({ time: v.arrivalTime, type: "ARRIVAL", idx }));
-
-      function pushEvent(ev) {
-        events.push(ev);
-        events.sort((a, b) => a.time - b.time);
-      }
+      const maxEnd = cfg.simulationDuration + 60.0;
 
       while (events.length > 0) {
         const ev = events.shift();
-        if (ev.time > maxSimEnd) break;
-
+        if (ev.time > maxEnd) break;
         if (ev.type === "ARRIVAL") {
-          const v = vehicles[ev.idx];
           waitingQueue.push(ev.idx);
           queueLengthOverTime.push([ev.time, waitingQueue.length]);
-
           if (freePumps.length > 0) {
             const pIdx = freePumps.shift();
             const qIdx = waitingQueue.shift();
             queueLengthOverTime.push([ev.time, waitingQueue.length]);
-
             const qv = vehicles[qIdx];
             qv.serviceStartTime = ev.time;
             qv.serviceEndTime = ev.time + qv.serviceDuration;
             qv.departureTime = qv.serviceEndTime;
             qv.dispenserId = pIdx;
             qv.status = "fueling";
-
-            pushEvent({ time: qv.serviceEndTime, type: "DEPARTURE", idx: qIdx, pIdx });
+            events.push({ time: qv.serviceEndTime, type: "DEPARTURE", idx: qIdx, pIdx });
+            events.sort((a, b) => a.time - b.time);
           }
         } else if (ev.type === "DEPARTURE") {
           const v = vehicles[ev.idx];
           v.status = "completed";
-          dispensers[ev.pIdx].records.push({
-            vehicleId: v.vehicleId,
-            start: v.serviceStartTime,
-            end: v.serviceEndTime
-          });
-
+          dispensers[ev.pIdx].records.push({ vehicleId: v.vehicleId, start: v.serviceStartTime, end: v.serviceEndTime });
           if (waitingQueue.length > 0) {
             const nextIdx = waitingQueue.shift();
             queueLengthOverTime.push([ev.time, waitingQueue.length]);
-
             const nv = vehicles[nextIdx];
             nv.serviceStartTime = ev.time;
             nv.serviceEndTime = ev.time + nv.serviceDuration;
             nv.departureTime = nv.serviceEndTime;
             nv.dispenserId = ev.pIdx;
             nv.status = "fueling";
-
-            pushEvent({ time: nv.serviceEndTime, type: "DEPARTURE", idx: nextIdx, pIdx: ev.pIdx });
+            events.push({ time: nv.serviceEndTime, type: "DEPARTURE", idx: nextIdx, pIdx: ev.pIdx });
+            events.sort((a, b) => a.time - b.time);
           } else {
             freePumps.push(ev.pIdx);
           }
         }
       }
-
       return { vehicles, dispensers, queueLengthOverTime, config: cfg };
     }
 
-    function computeMetrics(res) {
+    function computeMetricsJS(res) {
       const dur = res.config.simulationDuration;
       const completed = res.vehicles.filter(v => v.status === "completed");
       const waits = completed.map(v => v.serviceStartTime - v.arrivalTime).sort((a, b) => a - b);
       const sysTimes = completed.map(v => v.departureTime - v.arrivalTime);
-
       const mean = arr => arr.length ? arr.reduce((s, x) => s + x, 0) / arr.length : 0;
       const median = arr => {
         if (!arr.length) return 0;
@@ -897,32 +605,21 @@
         const m = mean(arr);
         return Math.sqrt(arr.reduce((s, x) => s + (x - m) ** 2, 0) / arr.length);
       };
-      const p95 = arr => {
-        if (!arr.length) return 0;
-        const idx = Math.min(arr.length - 1, Math.floor(0.95 * (arr.length - 1)));
-        return arr[idx];
-      };
+      const p95 = arr => arr.length ? arr[Math.min(arr.length - 1, Math.floor(0.95 * (arr.length - 1)))] : 0;
 
-      // Time-weighted queue length
-      let maxQ = 0;
-      let totalArea = 0;
+      let maxQ = 0, totalArea = 0;
       const qts = res.queueLengthOverTime;
-      if (qts.length > 0) {
-        for (let i = 0; i < qts.length; i++) {
-          if (qts[i][1] > maxQ) maxQ = qts[i][1];
-          if (i < qts.length - 1) {
-            totalArea += qts[i][1] * (qts[i + 1][0] - qts[i][0]);
-          }
-        }
-        const [lastT, lastQ] = qts[qts.length - 1];
-        if (lastT < dur) totalArea += lastQ * (dur - lastT);
+      for (let i = 0; i < qts.length; i++) {
+        if (qts[i][1] > maxQ) maxQ = qts[i][1];
+        if (i < qts.length - 1) totalArea += qts[i][1] * (qts[i + 1][0] - qts[i][0]);
       }
-
+      if (qts.length && qts[qts.length - 1][0] < dur) {
+        totalArea += qts[qts.length - 1][1] * (dur - qts[qts.length - 1][0]);
+      }
       const dispenserUtils = res.dispensers.map(d => {
         const busy = d.records.reduce((s, r) => s + (r.end - r.start), 0);
         return dur > 0 ? Math.min(busy / dur, 1.0) : 0;
       });
-
       return {
         totalArrived: res.vehicles.length,
         totalServed: completed.length,
@@ -940,29 +637,19 @@
       };
     }
 
-    // =========================================================================
-    // 3. STATE & PRESETS
-    // =========================================================================
-    const PRESETS = {
-      urban:      { numDispensers: 3, arrivalRate: 20, avgServiceTime: 5.0, serviceTimeStd: 1.5, simDuration: 120 },
-      rush:       { numDispensers: 3, arrivalRate: 34, avgServiceTime: 4.5, serviceTimeStd: 1.2, simDuration: 120 },
-      highway:    { numDispensers: 6, arrivalRate: 65, avgServiceTime: 4.0, serviceTimeStd: 1.0, simDuration: 180 },
-      bottleneck: { numDispensers: 1, arrivalRate: 22, avgServiceTime: 5.5, serviceTimeStd: 1.5, simDuration: 90 }
-    };
-
     let currentResult = null;
     let currentMetrics = null;
-    let playTimer = null;
     let usePythonBackend = false;
+    let playTimer = null;
 
-    async function apiPost(endpoint, body) {
-      const resp = await fetch(endpoint, {
+    async function apiPost(url, body) {
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)
       });
-      if (!resp.ok) throw new Error("API error " + resp.status);
-      return resp.json();
+      if (!res.ok) throw new Error("API error " + res.status);
+      return res.json();
     }
 
     function getConfig() {
@@ -980,197 +667,105 @@
       };
     }
 
-    // =========================================================================
-    // 4. RENDERING FUNCTIONS
-    // =========================================================================
-    const PLOT_LAYOUT_BASE = {
-      paper_bgcolor: "rgba(0,0,0,0)",
-      plot_bgcolor: "rgba(17, 24, 39, 0.65)",
-      font: { color: "#f1f5f9", family: "'Plus Jakarta Sans', sans-serif", size: 12 },
-      xaxis: { gridcolor: "rgba(255,255,255,0.06)", zerolinecolor: "rgba(255,255,255,0.12)" },
-      yaxis: { gridcolor: "rgba(255,255,255,0.06)", zerolinecolor: "rgba(255,255,255,0.12)" },
-      margin: { l: 48, r: 24, t: 48, b: 42 },
-      hoverlabel: { bgcolor: "#1f2937", font: { color: "#f9fafb" }, bordercolor: "#374151" },
-      legend: { orientation: "h", y: 1.08, x: 1, xanchor: "right" }
+    const PLOT_BASE = {
+      paper_bgcolor: "#181b20",
+      plot_bgcolor: "#111317",
+      font: { color: "#e5e7eb", size: 11 },
+      xaxis: { gridcolor: "#22262e", zerolinecolor: "#2c313a" },
+      yaxis: { gridcolor: "#22262e", zerolinecolor: "#2c313a" },
+      margin: { l: 46, r: 16, t: 36, b: 38 },
+      legend: { orientation: "h", y: 1.12, x: 1, xanchor: "right" }
     };
 
     async function updateAll() {
       const cfg = getConfig();
-      const serviceRatePerPump = 60.0 / cfg.avgServiceTime;
-      const totalCapacity = cfg.numDispensers * serviceRatePerPump;
-      const rho = cfg.arrivalRate / totalCapacity;
-
-      // Update slider value readouts
       document.getElementById("valDispensers").textContent = cfg.numDispensers;
       document.getElementById("valArrival").textContent = cfg.arrivalRate;
       document.getElementById("valService").textContent = cfg.avgServiceTime.toFixed(1);
       document.getElementById("valStd").textContent = cfg.serviceTimeStd.toFixed(1);
       document.getElementById("valDuration").textContent = cfg.simulationDuration;
 
-      // Update Sidebar Rho Box
-      const rhoColor = rho < 0.7 ? "#34d399" : (rho < 1.0 ? "#fbbf24" : "#f87171");
-      const rhoBarColor = rho < 0.7 ? "#10b981" : (rho < 1.0 ? "#f59e0b" : "#ef4444");
-      document.getElementById("rhoBox").innerHTML = `
-        <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:#94a3b8;">
-          <span>Traffic Intensity (ρ)</span>
-          <span style="font-weight:700;color:${rhoColor}">${rho.toFixed(3)}</span>
-        </div>
-        <div class="rho-bar-bg">
-          <div class="rho-bar-fill" style="width:${Math.min(100, rho * 100)}%;background:${rhoBarColor};"></div>
-        </div>
-        <div style="font-size:0.74rem;color:#94a3b8;">
-          Demand: <b>${cfg.arrivalRate.toFixed(0)}</b> / Capacity: <b>${totalCapacity.toFixed(0)}</b> veh/hr
-        </div>
+      const muHr = 60.0 / cfg.avgServiceTime;
+      const capHr = cfg.numDispensers * muHr;
+      const rho = cfg.arrivalRate / capHr;
+      const stateLabel = rho < 1.0 ? "Stable (rho < 1)" : "Unstable (rho >= 1)";
+
+      document.getElementById("theoryBox").innerHTML = `
+        <div><span>Service Capacity:</span><strong>${capHr.toFixed(1)} veh/hr</strong></div>
+        <div><span>Traffic Intensity (ρ):</span><strong>${rho.toFixed(3)}</strong></div>
+        <div><span>Queue State:</span><strong>${stateLabel}</strong></div>
       `;
 
-      // Run Sim via Python Backend (or static JS fallback on GitHub Pages)
       if (usePythonBackend) {
         const data = await apiPost("/api/simulate", cfg);
-        currentResult = {
-          vehicles: data.vehicles,
-          queueLengthOverTime: data.queueLengthOverTime,
-          config: cfg
-        };
+        currentResult = { vehicles: data.vehicles, queueLengthOverTime: data.queueLengthOverTime, config: cfg };
         currentMetrics = data.metrics;
       } else {
-        currentResult = runSimulation(cfg);
-        currentMetrics = computeMetrics(currentResult);
+        currentResult = runSimulationJS(cfg);
+        currentMetrics = computeMetricsJS(currentResult);
       }
 
-      // Update Hero Banner
-      let pillHtml, statusDesc;
-      if (rho < 0.7) {
-        pillHtml = `<span class="status-pill pill-green">🟢 Normal Flow (ρ = ${rho.toFixed(2)})</span>`;
-        statusDesc = "Optimal operating state: Queue delays are minimal and turnaround is fast.";
-      } else if (rho < 1.0) {
-        pillHtml = `<span class="status-pill pill-amber">🟡 Heavy Traffic (ρ = ${rho.toFixed(2)})</span>`;
-        statusDesc = "High utilization: Queues form intermittently during arrival bursts.";
-      } else {
-        pillHtml = `<span class="status-pill pill-rose">🔴 System Saturated (ρ = ${rho.toFixed(2)})</span>`;
-        statusDesc = "Unstable condition: Demand exceeds capacity; queues expand indefinitely.";
-      }
-
-      document.getElementById("heroBanner").innerHTML = `
-        <div>
-          <h1 class="hero-title">⛽ PetroFlow <span class="sub">| Queue Simulation &amp; Modelling Studio</span></h1>
-          <p class="hero-desc">Discrete-Event Queue Engine • M/G/${cfg.numDispensers} Multi-Server Stochastic Process • FCFS Discipline</p>
-        </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-          ${pillHtml}
-          <span style="font-size:0.76rem;color:#94a3b8;">${statusDesc}</span>
-        </div>
-      `;
-
-      // Sync scrubber max
       const scrubber = document.getElementById("timeScrubber");
       scrubber.max = cfg.simulationDuration;
-      if (parseFloat(scrubber.value) > cfg.simulationDuration) {
-        scrubber.value = cfg.simulationDuration;
-      }
+      if (parseFloat(scrubber.value) > cfg.simulationDuration) scrubber.value = cfg.simulationDuration;
 
-      renderOverview(cfg, rho);
-      renderLiveStation();
-      renderAnalyticsCharts();
-      renderStatsTab(cfg);
+      renderOverview(cfg);
+      renderStation();
+      renderCharts();
+      renderLittlesLaw(cfg);
       renderScenarios();
       renderWhatIf();
     }
 
-    function renderOverview(cfg, rho) {
+    function renderOverview(cfg) {
       const m = currentMetrics;
-      const rhoPill = rho < 0.7 ? '<span class="status-pill pill-green">Stable (ρ &lt; 0.7)</span>' :
-                      (rho < 1.0 ? '<span class="status-pill pill-amber">Moderate (ρ &lt; 1.0)</span>' :
-                                   '<span class="status-pill pill-rose">Unstable (ρ ≥ 1.0)</span>');
-      const waitPill = m.avgWaitingTime < 3 ? "pill-green" : (m.avgWaitingTime < 8 ? "pill-amber" : "pill-rose");
-      const qPill = m.avgQueueLength < 2 ? "pill-green" : (m.avgQueueLength < 5 ? "pill-amber" : "pill-rose");
-
-      document.getElementById("kpiGrid").innerHTML = `
-        <div class="kpi-card">
-          <div class="kpi-header"><span class="kpi-icon icon-blue">🚗</span><span class="kpi-tag">Demand</span></div>
-          <div class="kpi-value">${m.totalArrived}</div>
-          <div class="kpi-label">Total Vehicles Arrived</div>
-          <div class="kpi-footer">Served: <b>${m.totalServed}</b> (${((m.totalServed / Math.max(1, m.totalArrived)) * 100).toFixed(1)}%)</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-header"><span class="kpi-icon icon-emerald">⏱️</span><span class="status-pill ${waitPill}">${m.avgWaitingTime.toFixed(1)}m avg</span></div>
-          <div class="kpi-value">${m.avgWaitingTime.toFixed(2)} <span class="kpi-unit">min</span></div>
-          <div class="kpi-label">Average Queue Wait</div>
-          <div class="kpi-footer">Worst Case: <b>${m.maxWaitingTime.toFixed(1)} min</b></div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-header"><span class="kpi-icon icon-amber">📊</span><span class="status-pill ${qPill}">Peak: ${m.maxQueueLength}</span></div>
-          <div class="kpi-value">${m.avgQueueLength.toFixed(2)} <span class="kpi-unit">veh</span></div>
-          <div class="kpi-label">Average Queue Depth</div>
-          <div class="kpi-footer">Peak Congestion: <b>${m.maxQueueLength} vehicles</b></div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-header"><span class="kpi-icon icon-purple">⛽</span>${rhoPill}</div>
-          <div class="kpi-value">${(m.avgUtilisation * 100).toFixed(1)}%</div>
-          <div class="kpi-label">Dispenser Utilization</div>
-          <div class="kpi-footer">Throughput: <b>${m.throughputPerHour.toFixed(1)} veh/hr</b></div>
-        </div>
+      document.getElementById("tblPrimary").innerHTML = `
+        <tr><td>Total Vehicles Arrived</td><td class="val">${m.totalArrived}</td></tr>
+        <tr><td>Total Vehicles Served</td><td class="val">${m.totalServed}</td></tr>
+        <tr><td>Effective Throughput</td><td class="val">${m.throughputPerHour.toFixed(2)} veh/hr</td></tr>
+        <tr><td>Time-Weighted Avg Queue Length</td><td class="val">${m.avgQueueLength.toFixed(3)} veh</td></tr>
+        <tr><td>Maximum Queue Length</td><td class="val">${m.maxQueueLength} veh</td></tr>
+        <tr><td>Mean Time in Station</td><td class="val">${m.avgTimeInSystem.toFixed(3)} min</td></tr>
       `;
 
-      const totalCap = cfg.numDispensers * (60.0 / cfg.avgServiceTime);
-      const riskText = rho < 0.7 ? "Low — dispensers handle traffic smoothly." :
-                       (rho < 1.0 ? "Moderate — queues accumulate during micro-peaks." :
-                                    "Critical — arrival rate exceeds capacity. Add another dispenser.");
-
-      document.getElementById("diagGrid").innerHTML = `
-        <div class="glass-panel">
-          <div style="font-size:0.95rem;font-weight:700;margin-bottom:8px;">💡 Operational Diagnosis &amp; System Health</div>
-          <div style="font-size:0.85rem;color:#cbd5e1;line-height:1.65;">
-            • <b>Arrival Rate:</b> ${cfg.arrivalRate.toFixed(1)} vehicles/hour with avg service duration ${cfg.avgServiceTime.toFixed(1)} min.<br>
-            • <b>Effective Service Capacity:</b> ${totalCap.toFixed(1)} vehicles/hour across ${cfg.numDispensers} dispenser(s).<br>
-            • <b>Turnaround Efficiency:</b> Avg dwell time is <b>${m.avgTimeInSystem.toFixed(2)} min</b> (wait: ${m.avgWaitingTime.toFixed(2)}m).<br>
-            • <b>Queue Congestion Risk:</b> ${riskText}
-          </div>
-        </div>
-        <div class="glass-panel">
-          <div style="font-size:0.95rem;font-weight:700;margin-bottom:8px;">⚡ Fast Insights</div>
-          <div style="font-size:0.84rem;color:#94a3b8;line-height:1.65;">
-            <span style="color:#10b981;">✔</span> <b>Completed Vehicles:</b> ${m.totalServed} of ${m.totalArrived}<br>
-            <span style="color:#38bdf8;">✔</span> <b>95% Wait Under:</b> ${m.p95WaitingTime.toFixed(2)} min<br>
-            <span style="color:#f59e0b;">✔</span> <b>Peak Queue Recorded:</b> ${m.maxQueueLength} vehicles<br>
-            <span style="color:#8b5cf6;">✔</span> <b>Station Throughput:</b> ${m.throughputPerHour.toFixed(1)} veh/hr
-          </div>
-        </div>
+      document.getElementById("tblSecondary").innerHTML = `
+        <tr><td>Mean Waiting Time</td><td class="val">${m.avgWaitingTime.toFixed(3)} min</td></tr>
+        <tr><td>Median Waiting Time</td><td class="val">${m.medianWaitingTime.toFixed(3)} min</td></tr>
+        <tr><td>Std Dev of Waiting Time</td><td class="val">${m.stdWaitingTime.toFixed(3)} min</td></tr>
+        <tr><td>95th Percentile Waiting Time</td><td class="val">${m.p95WaitingTime.toFixed(3)} min</td></tr>
+        <tr><td>Maximum Waiting Time</td><td class="val">${m.maxWaitingTime.toFixed(3)} min</td></tr>
+        <tr><td>Average Dispenser Utilization</td><td class="val">${(m.avgUtilisation * 100).toFixed(1)}%</td></tr>
       `;
-
       renderLedger();
     }
 
     function renderLedger() {
-      const filter = document.getElementById("filterStatus").value;
-      const rows = currentResult.vehicles.filter(v => filter === "all" || v.status === filter);
+      const f = document.getElementById("filterStatus").value;
+      const rows = currentResult.vehicles.filter(v => f === "all" || v.status === f);
       document.getElementById("ledgerBody").innerHTML = rows.map(v => {
-        const wait = v.serviceStartTime > 0 ? (v.serviceStartTime - v.arrivalTime).toFixed(2) : "—";
-        const sys = v.departureTime > 0 ? (v.departureTime - v.arrivalTime).toFixed(2) : "—";
-        const badge = v.status === "completed" ? "pill-green" : "pill-amber";
+        const wait = v.serviceStartTime > 0 ? (v.serviceStartTime - v.arrivalTime).toFixed(2) : "-";
+        const sys = v.departureTime > 0 ? (v.departureTime - v.arrivalTime).toFixed(2) : "-";
         return `
           <tr>
-            <td><b>#${v.vehicleId}</b></td>
+            <td>${v.vehicleId}</td>
             <td>${v.arrivalTime.toFixed(2)}</td>
-            <td>${v.serviceStartTime > 0 ? v.serviceStartTime.toFixed(2) : "—"}</td>
-            <td>${v.serviceEndTime > 0 ? v.serviceEndTime.toFixed(2) : "—"}</td>
+            <td>${v.serviceStartTime > 0 ? v.serviceStartTime.toFixed(2) : "-"}</td>
+            <td>${v.serviceEndTime > 0 ? v.serviceEndTime.toFixed(2) : "-"}</td>
             <td>${wait}</td>
             <td>${v.serviceDuration.toFixed(2)}</td>
             <td>${sys}</td>
-            <td>${v.dispenserId >= 0 ? "Pump #" + (v.dispenserId + 1) : "—"}</td>
-            <td><span class="status-pill ${badge}">${v.status}</span></td>
+            <td>${v.dispenserId >= 0 ? "Pump " + (v.dispenserId + 1) : "-"}</td>
+            <td>${v.status}</td>
           </tr>
         `;
       }).join("");
     }
 
-    function renderLiveStation() {
+    function renderStation() {
       const t = parseFloat(document.getElementById("timeScrubber").value);
       document.getElementById("timeLabel").textContent = `T = ${t.toFixed(1)}m`;
 
-      const waiting = [];
-      const fueling = [];
-      const completed = [];
-
+      const waiting = [], fueling = [], completed = [];
       for (const v of currentResult.vehicles) {
         if (v.arrivalTime <= t) {
           if (v.serviceStartTime === 0 || v.serviceStartTime > t) waiting.push(v);
@@ -1181,206 +776,112 @@
       waiting.sort((a, b) => a.arrivalTime - b.arrivalTime);
       completed.sort((a, b) => b.departureTime - a.departureTime);
 
-      const types = [["🚗 Sedan", "#38bdf8"], ["🚙 SUV", "#34d399"], ["🏎️ Coupe", "#f43f5e"], ["🚐 Van", "#fbbf24"], ["🚕 Taxi", "#eab308"], ["🏍️ Moto", "#a855f7"]];
-      const badgeFor = id => types[id % types.length];
+      const qHtml = waiting.length
+        ? waiting.slice(0, 12).map(v => `<div class="list-item"><span>Vehicle #${v.vehicleId}</span><span>Wait: ${(t - v.arrivalTime).toFixed(1)}m</span></div>`).join("") +
+          (waiting.length > 12 ? `<div style="font-size:11px;color:var(--muted);padding-top:4px;">+${waiting.length - 12} more</div>` : "")
+        : `<div style="font-size:12px;color:var(--muted);">No vehicles waiting</div>`;
 
       const numD = currentResult.config.numDispensers;
-      const queueHtml = waiting.length ? waiting.slice(0, 6).map((v, i) => {
-        const [name, col] = badgeFor(v.vehicleId);
-        return `
-          <div class="queue-vehicle-card" style="border-left: 3px solid ${col};">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <span style="font-weight:600;font-size:0.84rem;">#${i+1} ${name} <span style="color:#94a3b8;font-size:0.74rem;">(ID #${v.vehicleId})</span></span>
-              <span style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#fbbf24;">⏱️ ${(t - v.arrivalTime).toFixed(1)}m</span>
-            </div>
-            <div style="font-size:0.72rem;color:#64748b;margin-top:4px;">Arrived T=${v.arrivalTime.toFixed(1)}m • Service: ${v.serviceDuration.toFixed(1)}m</div>
-          </div>
-        `;
-      }).join("") + (waiting.length > 6 ? `<div style="text-align:center;color:#f59e0b;font-size:0.78rem;padding:6px;">+ ${waiting.length - 6} more waiting...</div>` : "")
-      : `<div style="text-align:center;padding:60px 12px;"><div style="font-size:1.8rem;">✨</div><div style="color:#10b981;font-weight:600;margin-top:6px;">Queue is Empty!</div><div style="color:#64748b;font-size:0.76rem;">Immediate pump access available.</div></div>`;
-
-      let pumpsHtml = "";
+      let pHtml = "";
       for (let d = 0; d < numD; d++) {
         const sv = fueling.find(v => v.dispenserId === d);
         if (sv) {
-          const elapsed = Math.max(0, t - sv.serviceStartTime);
-          const pct = Math.min(100, (elapsed / Math.max(0.1, sv.serviceDuration)) * 100);
-          const rem = Math.max(0, sv.serviceDuration - elapsed);
-          const [vName] = badgeFor(sv.vehicleId);
-          pumpsHtml += `
-            <div class="dispenser-box bay-active">
-              <div class="bay-header"><span class="bay-num">PUMP #${d+1}</span><span style="font-size:0.7rem;font-weight:700;color:#38bdf8;">● FUELING</span></div>
-              <div style="display:flex;justify-content:space-between;align-items:center;font-weight:600;">
-                <span>${vName}</span>
-                <span style="font-size:0.7rem;padding:2px 6px;border-radius:4px;background:rgba(14,165,233,0.2);color:#38bdf8;">ID #${sv.vehicleId}</span>
-              </div>
-              <div class="progress-container"><div class="progress-bar-fill" style="width:${pct.toFixed(0)}%;"></div></div>
-              <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#94a3b8;"><span>${pct.toFixed(0)}% Done</span><span>⏳ ${rem.toFixed(1)}m left</span></div>
+          const rem = Math.max(0, sv.serviceEndTime - t);
+          pHtml += `
+            <div class="pump-item busy">
+              <div style="font-weight:600;">Pump ${d + 1} - Active</div>
+              <div style="color:var(--muted);margin-top:4px;">Vehicle #${sv.vehicleId}</div>
+              <div style="font-family:Consolas,monospace;margin-top:2px;">Remaining: ${rem.toFixed(1)}m</div>
             </div>
           `;
         } else {
-          pumpsHtml += `
-            <div class="dispenser-box bay-idle">
-              <div class="bay-header"><span class="bay-num">PUMP #${d+1}</span><span style="font-size:0.7rem;font-weight:700;color:#64748b;">○ IDLE</span></div>
-              <div style="text-align:center;font-size:1.7rem;opacity:0.35;padding:6px 0;">⛽</div>
-              <div style="font-size:0.72rem;color:#64748b;text-align:center;">Ready for Next Vehicle</div>
+          pHtml += `
+            <div class="pump-item">
+              <div style="font-weight:600;color:var(--muted);">Pump ${d + 1} - Idle</div>
+              <div style="color:var(--muted);margin-top:4px;">Available</div>
             </div>
           `;
         }
       }
 
-      const exitHtml = completed.length ? completed.slice(0, 6).map(v => {
-        const [vName] = badgeFor(v.vehicleId);
-        return `
-          <div class="exit-card">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <span style="font-weight:600;font-size:0.8rem;">${vName} #${v.vehicleId}</span>
-              <span style="color:#10b981;font-weight:700;font-size:0.74rem;">P#${v.dispenserId + 1}</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:#94a3b8;margin-top:3px;">
-              <span>Exit: T=${v.departureTime.toFixed(1)}m</span>
-              <span>Total: ${(v.departureTime - v.arrivalTime).toFixed(1)}m</span>
-            </div>
-          </div>
-        `;
-      }).join("") + (completed.length > 6 ? `<div style="text-align:center;color:#64748b;font-size:0.74rem;margin-top:6px;">+ ${completed.length - 6} earlier exits</div>` : "")
-      : `<div style="text-align:center;padding:60px 12px;"><div style="font-size:1.5rem;">⏳</div><div style="color:#94a3b8;font-size:0.82rem;margin-top:4px;">No Departures Yet</div></div>`;
+      const cHtml = completed.length
+        ? completed.slice(0, 12).map(v => `<div class="list-item"><span>Vehicle #${v.vehicleId} (Pump ${v.dispenserId + 1})</span><span>Exit: ${v.departureTime.toFixed(1)}m</span></div>`).join("") +
+          (completed.length > 12 ? `<div style="font-size:11px;color:var(--muted);padding-top:4px;">+${completed.length - 12} earlier</div>` : "")
+        : `<div style="font-size:12px;color:var(--muted);">No departures yet</div>`;
 
-      document.getElementById("liveStationContainer").innerHTML = `
-        <div class="station-terminal-header">
-          <div style="display:flex;align-items:center;gap:12px;">
-            <div class="pulse-indicator"></div>
-            <div>
-              <div style="font-size:1.1rem;font-weight:700;">TERMINAL ACTIVE VIEW • T = ${t.toFixed(1)} MIN</div>
-              <div style="font-size:0.78rem;color:#94a3b8;">Live Snapshot of Forecourt, Queue Lanes &amp; Dispenser Islands</div>
-            </div>
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <span class="station-chip chip-blue">⛽ ${fueling.length} / ${numD} Fueling</span>
-            <span class="station-chip chip-amber">🚗 ${waiting.length} In Queue</span>
-            <span class="station-chip chip-emerald">✅ ${completed.length} Departed</span>
-          </div>
-        </div>
-        <div class="grid-station">
-          <div class="lane-container">
-            <div class="lane-title"><span>🛣️ QUEUE APPROACH</span><span class="lane-badge">FCFS</span></div>
-            ${queueHtml}
-          </div>
-          <div class="lane-container" style="background:rgba(15,23,42,0.75);">
-            <div class="lane-title"><span>⛽ DISPENSER BAYS</span><span class="lane-badge" style="background:rgba(16,185,129,0.2);color:#10b981;">${numD} Islands</span></div>
-            <div class="pumps-grid">${pumpsHtml}</div>
-          </div>
-          <div class="lane-container">
-            <div class="lane-title"><span>🏁 DEPARTURE EXIT</span><span class="lane-badge">Done</span></div>
-            ${exitHtml}
-          </div>
-        </div>
+      document.getElementById("stationView").innerHTML = `
+        <div class="box"><h2>Queue (${waiting.length})</h2>${qHtml}</div>
+        <div class="box"><h2>Dispensers (${fueling.length}/${numD} Busy)</h2><div class="pump-grid">${pHtml}</div></div>
+        <div class="box"><h2>Completed (${completed.length})</h2>${cHtml}</div>
       `;
     }
 
-    function renderAnalyticsCharts() {
+    function renderCharts() {
       const qts = currentResult.queueLengthOverTime;
-      const times = qts.map(p => p[0]);
-      const lengths = qts.map(p => p[1]);
-
-      Plotly.react("chartQueueLen", [{
-        x: times, y: lengths, mode: "lines", line: { shape: "hv", color: "#f59e0b", width: 2.5 },
-        fill: "tozeroy", fillcolor: "rgba(245, 158, 11, 0.15)", name: "Queue Depth"
+      Plotly.react("chartQueue", [{
+        x: qts.map(p => p[0]), y: qts.map(p => p[1]),
+        mode: "lines", line: { shape: "hv", color: "#3b82f6", width: 2 }, name: "Queue Length"
       }], {
-        ...PLOT_LAYOUT_BASE,
-        title: "<b>Live Queue Depth Over Time</b>",
-        xaxis: { ...PLOT_LAYOUT_BASE.xaxis, title: "Simulation Time (min)" },
-        yaxis: { ...PLOT_LAYOUT_BASE.yaxis, title: "Vehicles Waiting" }
+        ...PLOT_BASE, title: "Queue Length Over Time",
+        xaxis: { ...PLOT_BASE.xaxis, title: "Time (min)" },
+        yaxis: { ...PLOT_BASE.yaxis, title: "Vehicles" }
       }, { responsive: true });
 
-      const arrTimes = currentResult.vehicles.map(v => v.arrivalTime).sort((a, b) => a - b);
-      const completed = currentResult.vehicles.filter(v => v.status === "completed");
-      const endTimes = completed.map(v => v.serviceEndTime).sort((a, b) => a - b);
-
-      Plotly.react("chartArrivalsDep", [
-        { x: arrTimes, y: arrTimes.map((_, i) => i + 1), mode: "lines", line: { color: "#06b6d4", width: 2.5 }, name: "Arrivals" },
-        { x: endTimes, y: endTimes.map((_, i) => i + 1), mode: "lines", line: { color: "#10b981", width: 2.5 }, name: "Served" }
+      const arrT = currentResult.vehicles.map(v => v.arrivalTime).sort((a, b) => a - b);
+      const comp = currentResult.vehicles.filter(v => v.status === "completed");
+      const endT = comp.map(v => v.serviceEndTime).sort((a, b) => a - b);
+      Plotly.react("chartCum", [
+        { x: arrT, y: arrT.map((_, i) => i + 1), mode: "lines", line: { color: "#9ca3af", width: 2 }, name: "Arrivals" },
+        { x: endT, y: endT.map((_, i) => i + 1), mode: "lines", line: { color: "#3b82f6", width: 2 }, name: "Completions" }
       ], {
-        ...PLOT_LAYOUT_BASE,
-        title: "<b>Cumulative Throughput Dynamics</b>",
-        xaxis: { ...PLOT_LAYOUT_BASE.xaxis, title: "Simulation Time (min)" },
-        yaxis: { ...PLOT_LAYOUT_BASE.yaxis, title: "Total Vehicles" }
+        ...PLOT_BASE, title: "Cumulative Arrivals vs Completions",
+        xaxis: { ...PLOT_BASE.xaxis, title: "Time (min)" },
+        yaxis: { ...PLOT_BASE.yaxis, title: "Vehicles" }
       }, { responsive: true });
 
-      const waits = completed.map(v => v.serviceStartTime - v.arrivalTime);
-      Plotly.react("chartWaitDist", [{
+      const waits = comp.map(v => v.serviceStartTime - v.arrivalTime);
+      Plotly.react("chartHist", [{
         x: waits, type: "histogram", nbinsx: 20,
-        marker: { color: "rgba(16, 185, 129, 0.7)", line: { color: "#10b981", width: 1.5 } },
-        name: "Vehicles"
+        marker: { color: "#3b82f6", line: { color: "#111317", width: 1 } }
       }], {
-        ...PLOT_LAYOUT_BASE,
-        title: "<b>Waiting Time Frequency Distribution</b>",
-        xaxis: { ...PLOT_LAYOUT_BASE.xaxis, title: "Queue Wait Time (min)" },
-        yaxis: { ...PLOT_LAYOUT_BASE.yaxis, title: "Vehicle Count" }
+        ...PLOT_BASE, title: "Waiting Time Distribution",
+        xaxis: { ...PLOT_BASE.xaxis, title: "Wait Time (min)" },
+        yaxis: { ...PLOT_BASE.yaxis, title: "Count" }
       }, { responsive: true });
 
-      const uLabels = currentMetrics.dispenserUtils.map((_, i) => `Pump #${i + 1}`);
+      const uLabels = currentMetrics.dispenserUtils.map((_, i) => `Pump ${i + 1}`);
       const uVals = currentMetrics.dispenserUtils.map(u => u * 100);
-      const uCols = uVals.map(v => v >= 90 ? "#ef4444" : (v >= 75 ? "#f59e0b" : "#10b981"));
-
-      Plotly.react("chartPumpUtil", [{
-        x: uLabels, y: uVals, type: "bar",
-        marker: { color: uCols },
-        text: uVals.map(v => `<b>${v.toFixed(1)}%</b>`),
-        textposition: "outside"
+      Plotly.react("chartUtil", [{
+        x: uLabels, y: uVals, type: "bar", marker: { color: "#3b82f6" },
+        text: uVals.map(v => v.toFixed(1) + "%"), textposition: "outside"
       }], {
-        ...PLOT_LAYOUT_BASE,
-        title: "<b>Fuel Dispenser Utilization Breakdown</b>",
-        xaxis: { ...PLOT_LAYOUT_BASE.xaxis, title: "Fuel Pump Island" },
-        yaxis: { ...PLOT_LAYOUT_BASE.yaxis, title: "Utilization (%)", range: [0, 115] }
+        ...PLOT_BASE, title: "Dispenser Utilization",
+        xaxis: { ...PLOT_BASE.xaxis, title: "Dispenser" },
+        yaxis: { ...PLOT_BASE.yaxis, title: "Utilization (%)", range: [0, 115] }
       }, { responsive: true });
     }
 
-    function renderStatsTab(cfg) {
+    function renderLittlesLaw(cfg) {
       const m = currentMetrics;
-      document.getElementById("statsWaitBody").innerHTML = [
-        ["Mean Waiting Time (Wq)", `${m.avgWaitingTime.toFixed(3)} min`, "Expected queue wait prior to fueling."],
-        ["Median Waiting Time", `${m.medianWaitingTime.toFixed(3)} min`, "50% of drivers wait less than this."],
-        ["Std Dev of Wait Time", `${m.stdWaitingTime.toFixed(3)} min`, "Dispersion & predictability of delays."],
-        ["95th Percentile Wait", `${m.p95WaitingTime.toFixed(3)} min`, "95% of vehicles wait under this SLA."],
-        ["Maximum Wait Recorded", `${m.maxWaitingTime.toFixed(3)} min`, "Worst-case bottleneck delay."]
-      ].map(r => `<tr><td><b>${r[0]}</b></td><td style="color:var(--emerald);font-weight:700;">${r[1]}</td><td style="color:var(--text-muted);white-space:normal;">${r[2]}</td></tr>`).join("");
-
-      document.getElementById("statsSysBody").innerHTML = [
-        ["Mean Time in Station (W)", `${m.avgTimeInSystem.toFixed(3)} min`, "Total dwell time from arrival to exit."],
-        ["Avg Queue Length (Lq)", `${m.avgQueueLength.toFixed(3)} veh`, "Time-weighted average queue backlog."],
-        ["Peak Queue Depth", `${m.maxQueueLength} veh`, "Maximum instantaneous queue observed."],
-        ["Avg Dispenser Utilization", `${(m.avgUtilisation * 100).toFixed(1)}%`, "Active pump busy time ratio."],
-        ["Effective Throughput", `${m.throughputPerHour.toFixed(1)} veh/hr`, "Vehicles served per hour."]
-      ].map(r => `<tr><td><b>${r[0]}</b></td><td style="color:var(--cyan);font-weight:700;">${r[1]}</td><td style="color:var(--text-muted);white-space:normal;">${r[2]}</td></tr>`).join("");
-
-      const lamMin = cfg.arrivalRate / 60.0;
+      const realizedLamMin = m.totalArrived / cfg.simulationDuration;
       const Lsim = m.avgQueueLength;
       const Wsim = m.avgWaitingTime;
-      const Lpred = lamMin * Wsim;
-      const diffPct = (Math.abs(Lsim - Lpred) / Math.max(0.01, Lsim)) * 100.0;
+      const Lcalc = realizedLamMin * Wsim;
+      const diff = Lsim > 0 ? (Math.abs(Lsim - Lcalc) / Lsim) * 100 : 0;
 
-      document.getElementById("littlesLawCard").innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;">
-          <div>
-            <div style="font-size:1.1rem;font-weight:700;">⚖️ Little's Law Empirical Validation: L<sub>q</sub> = λ · W<sub>q</sub></div>
-            <div style="font-size:0.85rem;color:#94a3b8;margin-top:4px;">λ = ${lamMin.toFixed(4)} veh/min • W<sub>q</sub> = ${Wsim.toFixed(3)} min</div>
-          </div>
-          <div style="display:flex;gap:24px;">
-            <div style="text-align:right;"><div style="font-size:0.75rem;color:#94a3b8;">Simulated L<sub>q</sub></div><div style="font-size:1.4rem;font-weight:800;color:#10b981;">${Lsim.toFixed(3)}</div></div>
-            <div style="text-align:right;"><div style="font-size:0.75rem;color:#94a3b8;">Predicted λ·W<sub>q</sub></div><div style="font-size:1.4rem;font-weight:800;color:#38bdf8;">${Lpred.toFixed(3)}</div></div>
-            <div style="text-align:right;"><div style="font-size:0.75rem;color:#94a3b8;">Discrepancy</div><div style="font-size:1.4rem;font-weight:800;color:${diffPct < 10 ? '#34d399' : '#fbbf24'};">${diffPct.toFixed(1)}%</div></div>
-          </div>
-        </div>
+      document.getElementById("tblLittles").innerHTML = `
+        <tr><td>Realized Arrival Rate (λ)</td><td class="val">${realizedLamMin.toFixed(4)} veh/min</td></tr>
+        <tr><td>Mean Waiting Time (Wq)</td><td class="val">${Wsim.toFixed(3)} min</td></tr>
+        <tr><td>Simulated Avg Queue Length (Lq)</td><td class="val">${Lsim.toFixed(3)} veh</td></tr>
+        <tr><td>Little's Law Prediction (λ × Wq)</td><td class="val">${Lcalc.toFixed(3)} veh</td></tr>
+        <tr><td>Finite-Horizon Difference</td><td class="val">${diff.toFixed(2)}%</td></tr>
       `;
     }
 
     async function renderScenarios() {
       const cfg = getConfig();
-      const arr = parseFloat(document.getElementById("inBenchArr").value);
-      const reps = parseInt(document.getElementById("inBenchReps").value, 10);
-      document.getElementById("valBenchArr").textContent = arr;
-      document.getElementById("valBenchReps").textContent = reps;
+      const arr = parseFloat(document.getElementById("inBenchArr").value) || 20;
+      const reps = parseInt(document.getElementById("inBenchReps").value, 10) || 1;
 
       let results;
       if (usePythonBackend) {
@@ -1388,132 +889,76 @@
         results = data.scenarios;
       } else {
         results = [1, 2, 3, 4].map(nd => {
-          let sumWait = 0, sumMaxQ = 0, sumUtil = 0, sumTp = 0;
+          let sw = 0, sq = 0, su = 0, st = 0;
           for (let r = 0; r < reps; r++) {
-            const scRes = runSimulation({ ...cfg, numDispensers: nd, arrivalRate: arr, randomSeed: cfg.randomSeed + r });
-            const scMet = computeMetrics(scRes);
-            sumWait += scMet.avgWaitingTime;
-            sumMaxQ += scMet.maxQueueLength;
-            sumUtil += scMet.avgUtilisation;
-            sumTp += scMet.throughputPerHour;
+            const met = computeMetricsJS(runSimulationJS({ ...cfg, numDispensers: nd, arrivalRate: arr, randomSeed: cfg.randomSeed + r }));
+            sw += met.avgWaitingTime; sq += met.maxQueueLength; su += met.avgUtilisation; st += met.throughputPerHour;
           }
           const rho = arr / (nd * (60.0 / cfg.avgServiceTime));
-          return {
-            name: `${nd} Pump${nd > 1 ? 's' : ''}`,
-            nd,
-            rho,
-            avgWait: sumWait / reps,
-            maxQ: Math.round(sumMaxQ / reps),
-            util: (sumUtil / reps) * 100,
-            tp: sumTp / reps
-          };
+          return { nd, rho, avgWait: sw / reps, maxQ: Math.round(sq / reps), util: (su / reps) * 100, tp: st / reps };
         });
       }
 
-      document.getElementById("scenarioTableBody").innerHTML = results.map(r => {
-        const st = r.rho < 0.8 ? "🟢 Stable" : (r.rho < 1.0 ? "🟡 Congested" : "🔴 Saturated");
-        return `
-          <tr>
-            <td><b>${r.name}</b></td>
-            <td>${r.nd}</td>
-            <td>${r.rho.toFixed(3)}</td>
-            <td>${st}</td>
-            <td>${r.avgWait.toFixed(2)} min</td>
-            <td>${r.maxQ} veh</td>
-            <td>${r.util.toFixed(1)}%</td>
-            <td>${r.tp.toFixed(1)} veh/hr</td>
-          </tr>
-        `;
-      }).join("");
-
-      const names = results.map(r => r.name);
-      Plotly.react("chartScWait", [{ x: names, y: results.map(r => r.avgWait), type: "bar", marker: { color: "#06b6d4" }, text: results.map(r => r.avgWait.toFixed(2) + "m"), textposition: "outside" }],
-        { ...PLOT_LAYOUT_BASE, title: "<b>Avg Waiting Time by Scenario</b>", yaxis: { ...PLOT_LAYOUT_BASE.yaxis, title: "Minutes", range: [0, Math.max(1, ...results.map(r => r.avgWait)) * 1.25] } }, { responsive: true });
-
-      Plotly.react("chartScQueue", [{ x: names, y: results.map(r => r.maxQ), type: "bar", marker: { color: "#f59e0b" }, text: results.map(r => r.maxQ + " veh"), textposition: "outside" }],
-        { ...PLOT_LAYOUT_BASE, title: "<b>Peak Queue Depth by Scenario</b>", yaxis: { ...PLOT_LAYOUT_BASE.yaxis, title: "Vehicles", range: [0, Math.max(1, ...results.map(r => r.maxQ)) * 1.25] } }, { responsive: true });
-
-      Plotly.react("chartScUtil", [{ x: names, y: results.map(r => r.util), type: "bar", marker: { color: results.map(r => r.util >= 95 ? "#ef4444" : (r.util >= 80 ? "#f59e0b" : "#10b981")) }, text: results.map(r => r.util.toFixed(1) + "%"), textposition: "outside" }],
-        { ...PLOT_LAYOUT_BASE, title: "<b>Average Utilization by Scenario</b>", yaxis: { ...PLOT_LAYOUT_BASE.yaxis, title: "Utilization (%)", range: [0, 115] } }, { responsive: true });
-
-      Plotly.react("chartScTp", [{ x: names, y: results.map(r => r.tp), type: "bar", marker: { color: "#3b82f6" }, text: results.map(r => r.tp.toFixed(1) + "/hr"), textposition: "outside" }],
-        { ...PLOT_LAYOUT_BASE, title: "<b>Hourly Throughput by Scenario</b>", yaxis: { ...PLOT_LAYOUT_BASE.yaxis, title: "Vehicles / Hr", range: [0, Math.max(1, ...results.map(r => r.tp)) * 1.25] } }, { responsive: true });
-
-      const bestWait = results.reduce((a, b) => a.avgWait < b.avgWait ? a : b);
-      const optimal = results.find(r => r.rho < 0.85 && r.avgWait < 3.0) || bestWait;
-      document.getElementById("scenarioSummary").innerHTML = `
-        <h4 style="margin-top:0;color:var(--emerald);">🏆 Executive Benchmark Summary</h4>
-        <p style="font-size:0.88rem;color:#cbd5e1;margin-bottom:0;">
-          • <b>Lowest Average Wait:</b> ${bestWait.name} (${bestWait.avgWait.toFixed(2)} min)<br>
-          • <b>Recommended Balance:</b> <b>${optimal.name}</b> achieves ρ = ${optimal.rho.toFixed(3)} with ${optimal.avgWait.toFixed(2)}m avg wait and ${optimal.util.toFixed(1)}% pump utilization.
-        </p>
-      `;
+      document.getElementById("scenarioBody").innerHTML = results.map(r => `
+        <tr>
+          <td>${r.nd}</td>
+          <td>${r.rho.toFixed(3)}</td>
+          <td>${r.rho < 1 ? "Stable" : "Unstable"}</td>
+          <td>${r.avgWait.toFixed(2)}</td>
+          <td>${r.maxQ}</td>
+          <td>${r.util.toFixed(1)}%</td>
+          <td>${r.tp.toFixed(1)}</td>
+        </tr>
+      `).join("");
     }
 
     async function renderWhatIf() {
       const cfg = getConfig();
       const param = document.getElementById("wiParam").value;
-      const steps = parseInt(document.getElementById("inWiSteps").value, 10);
-      document.getElementById("valWiSteps").textContent = steps;
-
+      const steps = 6;
       let vals = [], waits = [], queues = [];
+
       if (usePythonBackend) {
         const data = await apiPost("/api/whatif", { ...cfg, param, steps });
-        vals = data.vals;
-        waits = data.waits;
-        queues = data.queues;
+        vals = data.vals; waits = data.waits; queues = data.queues;
       } else {
         for (let i = 0; i < steps; i++) {
-          if (param === "arrival") vals.push(10 + (50 * i) / (steps - 1));
-          else if (param === "service") vals.push(2 + (10 * i) / (steps - 1));
+          if (param === "arrival") vals.push(10 + 10 * i);
+          else if (param === "service") vals.push(2 + 2 * i);
           else vals.push(i + 1);
         }
-
         for (const v of vals) {
           const c = { ...cfg };
           if (param === "arrival") c.arrivalRate = v;
-          else if (param === "service") {
-            c.avgServiceTime = v;
-            c.minServiceTime = Math.max(1, v - 2);
-            c.maxServiceTime = v + 2;
-          } else c.numDispensers = v;
-
-          const m = computeMetrics(runSimulation(c));
+          else if (param === "service") { c.avgServiceTime = v; c.minServiceTime = Math.max(1, v - 2); c.maxServiceTime = v + 2; }
+          else c.numDispensers = v;
+          const m = computeMetricsJS(runSimulationJS(c));
           waits.push(m.avgWaitingTime);
           queues.push(m.maxQueueLength);
         }
       }
 
-      const xTitle = param === "arrival" ? "Arrival Rate (veh/hr)" : (param === "service" ? "Service Time (min)" : "Dispensers (c)");
-      Plotly.react("chartWiWait", [{ x: vals, y: waits, mode: "lines+markers", line: { color: "#06b6d4", width: 3 }, marker: { size: 8 } }],
-        { ...PLOT_LAYOUT_BASE, title: "<b>Sensitivity: Average Wait Time</b>", xaxis: { ...PLOT_LAYOUT_BASE.xaxis, title: xTitle }, yaxis: { ...PLOT_LAYOUT_BASE.yaxis, title: "Wait Time (min)" } }, { responsive: true });
-
-      Plotly.react("chartWiQueue", [{ x: vals, y: queues, mode: "lines+markers", line: { color: "#f59e0b", width: 3 }, marker: { size: 8 } }],
-        { ...PLOT_LAYOUT_BASE, title: "<b>Sensitivity: Peak Queue Depth</b>", xaxis: { ...PLOT_LAYOUT_BASE.xaxis, title: xTitle }, yaxis: { ...PLOT_LAYOUT_BASE.yaxis, title: "Vehicles" } }, { responsive: true });
+      const xTitle = param === "arrival" ? "Arrival Rate (veh/hr)" : (param === "service" ? "Service Time (min)" : "Dispensers");
+      Plotly.react("chartWhatIf", [
+        { x: vals, y: waits, mode: "lines+markers", line: { color: "#3b82f6", width: 2 }, name: "Avg Wait (min)" }
+      ], {
+        ...PLOT_BASE,
+        height: 210,
+        margin: { l: 42, r: 10, t: 10, b: 36 },
+        xaxis: { ...PLOT_BASE.xaxis, title: xTitle },
+        yaxis: { ...PLOT_BASE.yaxis, title: "Avg Wait (min)" }
+      }, { responsive: true });
     }
 
-    // =========================================================================
-    // 5. EVENT LISTENERS & PLAYBACK
-    // =========================================================================
-    document.querySelectorAll(".tab-btn").forEach(btn => {
+    // Navigation & Events
+    document.querySelectorAll(".nav-btn").forEach(btn => {
       btn.addEventListener("click", () => {
-        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-        document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+        document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
         btn.classList.add("active");
         document.getElementById(btn.dataset.tab).classList.add("active");
         window.dispatchEvent(new Event("resize"));
       });
-    });
-
-    document.getElementById("presetSelect").addEventListener("change", e => {
-      const p = PRESETS[e.target.value];
-      if (!p) return;
-      document.getElementById("inDispensers").value = p.numDispensers;
-      document.getElementById("inArrival").value = p.arrivalRate;
-      document.getElementById("inService").value = p.avgServiceTime;
-      document.getElementById("inStd").value = p.serviceTimeStd;
-      document.getElementById("inDuration").value = p.simDuration;
-      updateAll();
     });
 
     ["inDispensers", "inArrival", "inService", "inStd", "inDuration", "inSeed"].forEach(id => {
@@ -1521,14 +966,13 @@
     });
     document.getElementById("btnRun").addEventListener("click", updateAll);
     document.getElementById("filterStatus").addEventListener("change", renderLedger);
-    document.getElementById("timeScrubber").addEventListener("input", renderLiveStation);
+    document.getElementById("timeScrubber").addEventListener("input", renderStation);
     document.getElementById("inBenchArr").addEventListener("input", renderScenarios);
     document.getElementById("inBenchReps").addEventListener("input", renderScenarios);
     document.getElementById("wiParam").addEventListener("change", renderWhatIf);
-    document.getElementById("inWiSteps").addEventListener("input", renderWhatIf);
 
-    document.getElementById("btnDownloadCsv").addEventListener("click", () => {
-      const header = "Vehicle_ID,Arrival_Min,Service_Start_Min,Service_End_Min,Wait_Min,Service_Dur_Min,Time_In_System_Min,Dispenser,Status\n";
+    document.getElementById("btnCsv").addEventListener("click", () => {
+      const header = "ID,Arrival_Min,Service_Start_Min,Service_End_Min,Wait_Min,Service_Dur_Min,Total_Time_Min,Dispenser,Status\n";
       const rows = currentResult.vehicles.map(v => [
         v.vehicleId, v.arrivalTime.toFixed(2), v.serviceStartTime.toFixed(2), v.serviceEndTime.toFixed(2),
         (v.serviceStartTime > 0 ? v.serviceStartTime - v.arrivalTime : 0).toFixed(2),
@@ -1536,26 +980,22 @@
         (v.departureTime > 0 ? v.departureTime - v.arrivalTime : 0).toFixed(2),
         v.dispenserId >= 0 ? v.dispenserId + 1 : "-", v.status
       ].join(",")).join("\n");
-      const blob = new Blob([header + rows], { type: "text/csv" });
       const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "petrol_pump_simulation_results.csv";
+      a.href = URL.createObjectURL(new Blob([header + rows], { type: "text/csv" }));
+      a.download = "simulation_results.csv";
       a.click();
     });
 
-    // Live Playback Animation
     const btnPlay = document.getElementById("btnPlayPause");
     btnPlay.addEventListener("click", () => {
       if (playTimer) {
         clearInterval(playTimer);
         playTimer = null;
-        btnPlay.textContent = "▶ Play";
+        btnPlay.textContent = "Play";
       } else {
         const scrubber = document.getElementById("timeScrubber");
-        if (parseFloat(scrubber.value) >= parseFloat(scrubber.max)) {
-          scrubber.value = 0;
-        }
-        btnPlay.textContent = "⏸ Pause";
+        if (parseFloat(scrubber.value) >= parseFloat(scrubber.max)) scrubber.value = 0;
+        btnPlay.textContent = "Pause";
         playTimer = setInterval(() => {
           const spd = parseFloat(document.getElementById("playSpeed").value);
           let next = parseFloat(scrubber.value) + 0.5 * spd;
@@ -1563,29 +1003,31 @@
             next = parseFloat(scrubber.max);
             clearInterval(playTimer);
             playTimer = null;
-            btnPlay.textContent = "▶ Play";
+            btnPlay.textContent = "Play";
           }
           scrubber.value = next;
-          renderLiveStation();
+          renderStation();
         }, 120);
       }
     });
 
-    document.getElementById("btnResetTime").addEventListener("click", () => {
-      if (playTimer) { clearInterval(playTimer); playTimer = null; btnPlay.textContent = "▶ Play"; }
+    document.getElementById("btnReset").addEventListener("click", () => {
+      if (playTimer) { clearInterval(playTimer); playTimer = null; btnPlay.textContent = "Play"; }
       document.getElementById("timeScrubber").value = 0;
-      renderLiveStation();
+      renderStation();
     });
 
-    // Initial boot: detect Python backend if available
-    (async function initApp() {
+    (async function init() {
       try {
-        const res = await fetch("/api/health", { cache: "no-store" });
-        if (res.ok) {
+        const r = await fetch("/api/health", { cache: "no-store" });
+        if (r.ok) {
           usePythonBackend = true;
+          document.getElementById("engineInfo").textContent = "Backend: Python (SimPy)";
+        } else {
+          document.getElementById("engineInfo").textContent = "Engine: Client-Side Simulation";
         }
       } catch (_) {
-        usePythonBackend = false;
+        document.getElementById("engineInfo").textContent = "Engine: Client-Side Simulation";
       }
       await updateAll();
     })();
