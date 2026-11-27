@@ -953,6 +953,17 @@
     let currentResult = null;
     let currentMetrics = null;
     let playTimer = null;
+    let usePythonBackend = false;
+
+    async function apiPost(endpoint, body) {
+      const resp = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      if (!resp.ok) throw new Error("API error " + resp.status);
+      return resp.json();
+    }
 
     function getConfig() {
       const avgS = parseFloat(document.getElementById("inService").value);
@@ -983,7 +994,7 @@
       legend: { orientation: "h", y: 1.08, x: 1, xanchor: "right" }
     };
 
-    function updateAll() {
+    async function updateAll() {
       const cfg = getConfig();
       const serviceRatePerPump = 60.0 / cfg.avgServiceTime;
       const totalCapacity = cfg.numDispensers * serviceRatePerPump;
@@ -1012,9 +1023,19 @@
         </div>
       `;
 
-      // Run Sim
-      currentResult = runSimulation(cfg);
-      currentMetrics = computeMetrics(currentResult);
+      // Run Sim via Python Backend (or static JS fallback on GitHub Pages)
+      if (usePythonBackend) {
+        const data = await apiPost("/api/simulate", cfg);
+        currentResult = {
+          vehicles: data.vehicles,
+          queueLengthOverTime: data.queueLengthOverTime,
+          config: cfg
+        };
+        currentMetrics = data.metrics;
+      } else {
+        currentResult = runSimulation(cfg);
+        currentMetrics = computeMetrics(currentResult);
+      }
 
       // Update Hero Banner
       let pillHtml, statusDesc;
@@ -1354,34 +1375,40 @@
       `;
     }
 
-    function renderScenarios() {
+    async function renderScenarios() {
       const cfg = getConfig();
       const arr = parseFloat(document.getElementById("inBenchArr").value);
       const reps = parseInt(document.getElementById("inBenchReps").value, 10);
       document.getElementById("valBenchArr").textContent = arr;
       document.getElementById("valBenchReps").textContent = reps;
 
-      const results = [1, 2, 3, 4].map(nd => {
-        let sumWait = 0, sumMaxQ = 0, sumUtil = 0, sumTp = 0;
-        for (let r = 0; r < reps; r++) {
-          const scRes = runSimulation({ ...cfg, numDispensers: nd, arrivalRate: arr, randomSeed: cfg.randomSeed + r });
-          const scMet = computeMetrics(scRes);
-          sumWait += scMet.avgWaitingTime;
-          sumMaxQ += scMet.maxQueueLength;
-          sumUtil += scMet.avgUtilisation;
-          sumTp += scMet.throughputPerHour;
-        }
-        const rho = arr / (nd * (60.0 / cfg.avgServiceTime));
-        return {
-          name: `${nd} Pump${nd > 1 ? 's' : ''}`,
-          nd,
-          rho,
-          avgWait: sumWait / reps,
-          maxQ: Math.round(sumMaxQ / reps),
-          util: (sumUtil / reps) * 100,
-          tp: sumTp / reps
-        };
-      });
+      let results;
+      if (usePythonBackend) {
+        const data = await apiPost("/api/scenarios", { ...cfg, benchmarkArrival: arr, repetitions: reps });
+        results = data.scenarios;
+      } else {
+        results = [1, 2, 3, 4].map(nd => {
+          let sumWait = 0, sumMaxQ = 0, sumUtil = 0, sumTp = 0;
+          for (let r = 0; r < reps; r++) {
+            const scRes = runSimulation({ ...cfg, numDispensers: nd, arrivalRate: arr, randomSeed: cfg.randomSeed + r });
+            const scMet = computeMetrics(scRes);
+            sumWait += scMet.avgWaitingTime;
+            sumMaxQ += scMet.maxQueueLength;
+            sumUtil += scMet.avgUtilisation;
+            sumTp += scMet.throughputPerHour;
+          }
+          const rho = arr / (nd * (60.0 / cfg.avgServiceTime));
+          return {
+            name: `${nd} Pump${nd > 1 ? 's' : ''}`,
+            nd,
+            rho,
+            avgWait: sumWait / reps,
+            maxQ: Math.round(sumMaxQ / reps),
+            util: (sumUtil / reps) * 100,
+            tp: sumTp / reps
+          };
+        });
+      }
 
       document.getElementById("scenarioTableBody").innerHTML = results.map(r => {
         const st = r.rho < 0.8 ? "🟢 Stable" : (r.rho < 1.0 ? "🟡 Congested" : "🔴 Saturated");
@@ -1423,32 +1450,38 @@
       `;
     }
 
-    function renderWhatIf() {
+    async function renderWhatIf() {
       const cfg = getConfig();
       const param = document.getElementById("wiParam").value;
       const steps = parseInt(document.getElementById("inWiSteps").value, 10);
       document.getElementById("valWiSteps").textContent = steps;
 
-      const vals = [];
-      for (let i = 0; i < steps; i++) {
-        if (param === "arrival") vals.push(10 + (50 * i) / (steps - 1));
-        else if (param === "service") vals.push(2 + (10 * i) / (steps - 1));
-        else vals.push(i + 1);
-      }
+      let vals = [], waits = [], queues = [];
+      if (usePythonBackend) {
+        const data = await apiPost("/api/whatif", { ...cfg, param, steps });
+        vals = data.vals;
+        waits = data.waits;
+        queues = data.queues;
+      } else {
+        for (let i = 0; i < steps; i++) {
+          if (param === "arrival") vals.push(10 + (50 * i) / (steps - 1));
+          else if (param === "service") vals.push(2 + (10 * i) / (steps - 1));
+          else vals.push(i + 1);
+        }
 
-      const waits = [], queues = [];
-      for (const v of vals) {
-        const c = { ...cfg };
-        if (param === "arrival") c.arrivalRate = v;
-        else if (param === "service") {
-          c.avgServiceTime = v;
-          c.minServiceTime = Math.max(1, v - 2);
-          c.maxServiceTime = v + 2;
-        } else c.numDispensers = v;
+        for (const v of vals) {
+          const c = { ...cfg };
+          if (param === "arrival") c.arrivalRate = v;
+          else if (param === "service") {
+            c.avgServiceTime = v;
+            c.minServiceTime = Math.max(1, v - 2);
+            c.maxServiceTime = v + 2;
+          } else c.numDispensers = v;
 
-        const m = computeMetrics(runSimulation(c));
-        waits.push(m.avgWaitingTime);
-        queues.push(m.maxQueueLength);
+          const m = computeMetrics(runSimulation(c));
+          waits.push(m.avgWaitingTime);
+          queues.push(m.maxQueueLength);
+        }
       }
 
       const xTitle = param === "arrival" ? "Arrival Rate (veh/hr)" : (param === "service" ? "Service Time (min)" : "Dispensers (c)");
@@ -1544,8 +1577,18 @@
       renderLiveStation();
     });
 
-    // Initial boot
-    updateAll();
+    // Initial boot: detect Python backend if available
+    (async function initApp() {
+      try {
+        const res = await fetch("/api/health", { cache: "no-store" });
+        if (res.ok) {
+          usePythonBackend = true;
+        }
+      } catch (_) {
+        usePythonBackend = false;
+      }
+      await updateAll();
+    })();
   </script>
 </body>
 </html>
